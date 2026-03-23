@@ -706,98 +706,145 @@ const ZMETA = {
 function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 
 
-/* ═══════════════ WEATHER ENGINE v2 ═══════════════
-   Sonnenstunden-basiertes Scoring
-   Saisonale Tageslichtberechnung (Breitengrad ~51°N)
-   Stündlicher Verlauf 7–21 Uhr
-═══════════════════════════════════════════════════ */
+/* ═══════════════ WEATHER ENGINE v3 — OPEN-METEO ECHTDATEN ═══════════════
+   Koordinaten je Ziel für Open-Meteo API (kostenlos, kein API-Key)
+   Stündliche Wetterdaten: Temperatur, Regenwahrscheinlichkeit, Sonnenscheindauer
+   Cache: Daten werden pro Session gespeichert
+   Fallback: Wenn kein Internet, simulierte Daten als Backup
+═══════════════════════════════════════════════════════════════════════════ */
 
-// Tageslichtdauer in Stunden für Breitengrad 51°N je Monat (0=Jan)
+const DEST_COORDS = {
+  koeln:            { lat: 50.938, lon: 6.960 },
+  bonn:             { lat: 50.735, lon: 7.100 },
+  duesseldorf:      { lat: 51.227, lon: 6.773 },
+  'bergisches-land':{ lat: 51.180, lon: 7.200 },
+  siebengebirge:    { lat: 50.670, lon: 7.210 },
+  aachen:           { lat: 50.776, lon: 6.084 },
+  eifel:            { lat: 50.360, lon: 6.750 },
+  maastricht:       { lat: 50.851, lon: 5.691 },
+  niederrhein:      { lat: 51.500, lon: 6.550 },
+  muenster:         { lat: 51.962, lon: 7.626 },
+  koblenz:          { lat: 50.360, lon: 7.590 },
+  mosel:            { lat: 50.050, lon: 7.100 },
+  sauerland:        { lat: 51.200, lon: 8.100 },
+  ruhrgebiet:       { lat: 51.515, lon: 7.100 },
+  amsterdam:        { lat: 52.370, lon: 4.895 },
+  rotterdam:        { lat: 51.922, lon: 4.480 },
+};
+
 const DAYLIGHT = [8.2,9.5,11.5,13.5,15.2,16.2,15.8,14.5,12.5,10.5,8.8,7.8];
+const wxCache = {};
+const wxPending = {};
 
-function rng(seed, n){ return Math.abs(Math.sin(seed * n * 0.127 + n * 3.1)) % 1; }
-
-function destSeed(id, dayOffset){
-  const d = new Date();
-  d.setDate(d.getDate() + dayOffset);
-  const dayKey = d.getDate() + d.getMonth()*31 + d.getFullYear()*366;
-  return id.split('').reduce((a,c)=>a+c.charCodeAt(0),0)*7 + dayKey;
+function iconFromWMO(wmo, hour){
+  if(wmo===0) return (hour>=7&&hour<=20)?'☀️':'🌙';
+  if(wmo<=2)  return '🌤️';
+  if(wmo<=3)  return '☁️';
+  if(wmo<=48) return '🌫️';
+  if(wmo<=67) return '🌧️';
+  if(wmo<=77) return '❄️';
+  if(wmo<=82) return '🌦️';
+  return '⛈️';
 }
 
-// Generiert stündliche Wetterdaten 7–21 Uhr (15 Stunden)
-function hourlyWeather(id, dayOffset=0){
-  const d = new Date();
-  d.setDate(d.getDate() + dayOffset);
-  const month = d.getMonth();
-  const seed = destSeed(id, dayOffset);
+async function fetchWeather(id, dayOffset){
+  const key = id + '_' + dayOffset;
+  if(wxCache[key]) return wxCache[key];
+  if(wxPending[key]) return wxPending[key];
 
+  const coords = DEST_COORDS[id];
+  if(!coords) return fallbackWeather(id, dayOffset);
+
+  const target = new Date();
+  target.setDate(target.getDate() + dayOffset);
+  const dateStr = target.toISOString().slice(0,10);
+
+  const url = `https://api.open-meteo.com/v1/forecast`
+    + `?latitude=${coords.lat}&longitude=${coords.lon}`
+    + `&hourly=temperature_2m,precipitation_probability,sunshine_duration,weathercode`
+    + `&timezone=Europe%2FBerlin`
+    + `&start_date=${dateStr}&end_date=${dateStr}`;
+
+  wxPending[key] = fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      const result = parseOpenMeteo(data, dayOffset);
+      wxCache[key] = result;
+      delete wxPending[key];
+      return result;
+    })
+    .catch(() => {
+      delete wxPending[key];
+      const fb = fallbackWeather(id, dayOffset);
+      wxCache[key] = fb;
+      return fb;
+    });
+
+  return wxPending[key];
+}
+
+function parseOpenMeteo(data, dayOffset){
+  const h = data.hourly;
+  const month = new Date().getMonth();
   const maxDaylight = DAYLIGHT[month];
-  // Sonnenaufgang ca. 6–8 Uhr je Saison, Sonnenuntergang entsprechend
-  const sunrise = 8 - (maxDaylight - 8) * 0.3;
-  const sunset  = sunrise + maxDaylight;
-
-  // Basis-Wolkenbedeckung für diesen Tag (0–1)
-  const baseClouds = rng(seed, 1);
-  // Basistemperatur je Monat + Ort-Variation
-  const monthTemp = [3,4,8,13,17,20,22,22,18,13,7,4][month];
-  const destTempOffset = (rng(seed,5) - 0.5) * 8;
-  const middayTemp = monthTemp + destTempOffset;
-
   const hours = [];
-  for(let h = 7; h <= 21; h++){
-    // Temperaturkurve: Minimum morgens/abends, Maximum ~14 Uhr
-    const tempCurve = Math.sin((h - 6) / 16 * Math.PI);
-    const tempSpread = Math.max(2, middayTemp * 0.4);
-    const temp = Math.round((middayTemp - tempSpread) + tempCurve * tempSpread * 2 + rng(seed, h*0.3) * 1.5 - 0.75);
-
-    // Regenwahrscheinlichkeit — variiert über den Tag
-    const rainBase = rng(seed, 2) * 80;
-    const rainVariation = (rng(seed, h*0.7+3) - 0.5) * 40;
-    const rain = Math.round(Math.max(0, Math.min(99, rainBase + rainVariation)));
-
-    // Sonne: hängt von Tageslicht + Wolken ab
-    const isDaylight = h >= sunrise && h <= sunset;
-    const cloudFactor = baseClouds * 0.8 + rng(seed, h*0.4) * 0.2;
-    const sunPossible = isDaylight && cloudFactor < 0.6;
-    const sunStrength = isDaylight ? Math.max(0, 1 - cloudFactor * 1.6) : 0;
-
-    // Icon
-    let icon;
-    if(!isDaylight){ icon = '🌙'; }
-    else if(rain > 65){ icon = '🌧️'; }
-    else if(rain > 40){ icon = '🌦️'; }
-    else if(cloudFactor > 0.7){ icon = '☁️'; }
-    else if(cloudFactor > 0.4){ icon = '⛅'; }
-    else if(cloudFactor > 0.2){ icon = '🌤️'; }
-    else { icon = '☀️'; }
-
-    hours.push({ h, temp, rain, icon, sunStrength, isDaylight });
+  for(let i = 7; i <= 21; i++){
+    const temp = Math.round(h.temperature_2m[i] ?? 15);
+    const rain = Math.round(h.precipitation_probability[i] ?? 30);
+    const sunSec = h.sunshine_duration ? (h.sunshine_duration[i] ?? 0) : 0;
+    const sunStrength = Math.min(1, sunSec / 3600);
+    const wmo = h.weathercode ? (h.weathercode[i] ?? 0) : 0;
+    hours.push({ h: i, temp, rain, icon: iconFromWMO(wmo, i), sunStrength, isDaylight: true });
   }
+  return buildWxSummary(hours, maxDaylight, month, true);
+}
 
-  // Sonnenstunden berechnen (Stunden mit sunStrength > 0.3)
-  const sunHours = Math.round(hours.filter(x=>x.sunStrength > 0.3).length * 10) / 10;
-  const maxRain = Math.max(...hours.map(x=>x.rain));
+function fallbackWeather(id, dayOffset){
+  const month = new Date().getMonth();
+  const maxDaylight = DAYLIGHT[month];
+  const seed = id.split('').reduce((a,c)=>a+c.charCodeAt(0),0)*7 + dayOffset*99;
+  const rng = n => Math.abs(Math.sin(seed*n*0.127+n*3.1))%1;
+  const baseCloud = rng(1)*0.7;
+  const monthTemp = [3,4,8,13,17,20,22,22,18,13,7,4][month];
+  const hours = [];
+  for(let h=7;h<=21;h++){
+    const cf = Math.min(1,Math.max(0,baseCloud+(rng(h)-0.5)*0.3));
+    const curve = Math.sin((h-6)/16*Math.PI);
+    const temp = Math.round(monthTemp-4+curve*8+rng(h+10)*3);
+    const rain = Math.round(cf>0.6?rng(h+20)*80:rng(h+20)*20);
+    const sunStrength = Math.max(0,1-cf*1.6);
+    const icon = cf>0.7?'☁️':cf>0.4?'⛅':cf>0.2?'🌤️':'☀️';
+    hours.push({h,temp,rain,icon,sunStrength,isDaylight:true});
+  }
+  return buildWxSummary(hours, maxDaylight, month, false);
+}
+
+function buildWxSummary(hours, maxDaylight, month, isReal){
+  const sunHours = Math.round(hours.reduce((s,x)=>s+x.sunStrength,0)*10)/10;
   const avgRain = Math.round(hours.reduce((s,x)=>s+x.rain,0)/hours.length);
+  const maxRain = Math.max(...hours.map(x=>x.rain));
   const middayH = hours.find(x=>x.h===14)||hours[7];
-  const good = sunHours >= 3 && avgRain < 50;
-
-  return { hours, sunHours, maxRain, avgRain, middayTemp: middayH.temp,
-           minTemp: Math.min(...hours.map(x=>x.temp)),
-           maxTemp: Math.max(...hours.map(x=>x.temp)),
-           good, maxDaylight, month };
+  const temps = hours.map(x=>x.temp);
+  return { hours, sunHours, avgRain, maxRain,
+           middayTemp: middayH.temp,
+           minTemp: Math.min(...temps), maxTemp: Math.max(...temps),
+           good: sunHours>=3 && avgRain<50,
+           maxDaylight, month, isReal };
 }
 
-// SCORING: Sonnenstunden dominiert, dann Regen, dann Temperatur
-function weatherScore(id, dayOffset=0){
-  const w = hourlyWeather(id, dayOffset);
-  return w.sunHours * 10 + (100 - w.avgRain) * 0.4 + w.middayTemp * 0.2;
+function weatherScore(wx){ return wx ? wx.sunHours*10+(100-wx.avgRain)*0.4+wx.middayTemp*0.2 : 0; }
+
+function getCachedWeather(id, dayOffset){ return wxCache[id+'_'+dayOffset]||null; }
+
+async function preloadZone(zone){
+  const dests = DEST.filter(d=>d.zone===zone);
+  await Promise.all(dests.flatMap(d=>[fetchWeather(d.id,0),fetchWeather(d.id,1)]));
 }
 
-function getWeatherForDay(id){ return hourlyWeather(id, dayMode); }
-
-function bestDest(zone){
-  return DEST.filter(d=>d.zone===zone)
-    .sort((a,b)=> weatherScore(b.id, dayMode) - weatherScore(a.id, dayMode))[0];
+async function bestDest(zone){
+  await preloadZone(zone);
+  const scored = DEST.filter(d=>d.zone===zone).map(d=>({d, score:weatherScore(getCachedWeather(d.id,dayMode))}));
+  return scored.sort((a,b)=>b.score-a.score)[0].d;
 }
 
 // KLEIDUNGSEMPFEHLUNG
@@ -899,7 +946,7 @@ function tl(t){ return {natur:'Natur',museum:'Museum',essen:'Essen',kinder:'Kind
 function primaryTag(tags){const prio=['museum','essen','natur','kinder'];return prio.find(p=>tags.includes(p))||tags[0];}
 
 /* ═══════════════ DAY TOGGLE ═══════════════ */
-function toggleDay(){
+async function toggleDay(){
   dayMode = dayMode===0 ? 1 : 0;
   const tog = document.getElementById('day-toggle');
   const lH = document.getElementById('lbl-heute');
@@ -907,12 +954,11 @@ function toggleDay(){
   tog.classList.toggle('morgen', dayMode===1);
   lH.classList.toggle('active', dayMode===0);
   lM.classList.toggle('active', dayMode===1);
-  // Re-render if a destination is already shown
   if(curDest && document.getElementById('sec-weather').classList.contains('show')){
-    renderDestCard(curDest, curDest.zone, false);
+    await renderDestCard(curDest, curDest.zone, false);
     if(document.getElementById('sec-activities').classList.contains('show')) showActivities();
   } else if(curZone){
-    showWeather(curZone);
+    await showWeather(curZone);
   }
 }
 
@@ -935,7 +981,7 @@ function toggleDay(){
     const z=zFromDist(dist);
     if(z!==lastZ){lastZ=z;curZone=z;const m=ZMETA[z];rd.innerHTML=`<div class="zread-name">${m.label}</div><div class="zread-detail">${m.detail}</div>`;}
   }
-  function release(){
+  async function release(){
     drag=false;h.classList.remove('dragging');
     if(!curZone)return;
     const dx=lx-C,dy=ly-C,ang=Math.atan2(dy,dx),sr=SNAP[curZone];
@@ -953,23 +999,35 @@ function toggleDay(){
 })();
 
 /* ═══════════════ WEATHER & DEST ═══════════════ */
-function showWeather(zone){
-  const best=bestDest(zone);
-  if(!best)return;
-  renderDestCard(best,zone,true);
+function showLoadingCard(){
+  const sec=document.getElementById('sec-weather');
+  document.getElementById('sec-weather-label').textContent='⏳ Wetterdaten werden geladen…';
+  document.getElementById('dest-card').innerHTML=`
+    <div style="padding:40px;text-align:center;color:var(--muted);font-size:.85rem;">
+      <div style="font-size:2rem;margin-bottom:10px;">🌤️</div>
+      Echte Wetterdaten werden abgerufen…
+    </div>`;
+  sec.classList.add('show');
 }
 
-function selectDest(id){
+async function showWeather(zone){
+  showLoadingCard();
+  const best = await bestDest(zone);
+  if(!best) return;
+  await renderDestCard(best, zone, true);
+}
+
+async function selectDest(id){
   const d=DEST.find(x=>x.id===id);
   if(!d)return;
   closeDropdown();
-  renderDestCard(d,d.zone,false);
+  await renderDestCard(d,d.zone,false);
   if(document.getElementById('sec-activities').classList.contains('show')) showActivities();
 }
 
-function renderDestCard(d,zone,isAuto){
+async function renderDestCard(d,zone,isAuto){
   curDest=d;
-  const w = hourlyWeather(d.id, dayMode);
+  const w = await fetchWeather(d.id, dayMode);
   wxGood = w.good;
   const img=DEST_IMAGES[d.id]||'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=75';
   const travel=[d.car?`🚗 ${d.car}`:'',d.train?`🚆 ${d.train}`:''].filter(Boolean).join('  ·  ');
@@ -979,7 +1037,9 @@ function renderDestCard(d,zone,isAuto){
   if(w.sunHours>=5 && w.avgRain<35){hCls='sun';hTxt='☀️ Follow the Sun!';hSub=`${w.sunHours}h Sonne erwartet — perfekter Ausflugstag`;}
   else if(w.sunHours>=2 && w.avgRain<60){hCls='ok';hTxt='🌤 Guter Ausflugstag';hSub=`${w.sunHours}h Sonne möglich — Schichten einpacken`;}
   else{hCls='rain';hTxt='🌧 Heute lieber Indoor';hSub='Wenig Sonne, viel Regen — Museen warten!';}
-
+  const realBadge = w.isReal
+    ? `<div style="display:inline-flex;align-items:center;gap:4px;font-size:.6rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;background:#e8f7ee;color:#2a7a3a;border:1px solid #b0ddb8;border-radius:99px;padding:3px 9px;margin-bottom:10px;">✅ Echtzeit-Wetterdaten</div>`
+    : `<div style="display:inline-flex;align-items:center;gap:4px;font-size:.6rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:99px;padding:3px 9px;margin-bottom:10px;">⚠️ Offline – Schätzwerte</div>`;
   // Kleidung
   const cloth = clothingAdvice(w);
   const clothHtml = `
@@ -1016,11 +1076,12 @@ function renderDestCard(d,zone,isAuto){
   zoneOrder.forEach(z=>{
     ddHtml+=`<div class="dropdown-zone-label">${zoneLabels[z]}</div>`;
     DEST.filter(x=>x.zone===z).forEach(c=>{
-      const cw = hourlyWeather(c.id, dayMode);
-      const wxIcon = cw.sunHours>=4?'☀️':cw.avgRain<50?'🌤️':'🌧️';
+      const cw = getCachedWeather(c.id, dayMode);
+      const wxIcon = !cw?'⏳':cw.sunHours>=4?'☀️':cw.avgRain<50?'🌤️':'🌧️';
+      const title = cw?`${cw.maxTemp}°C · ☀️${cw.sunHours}h`:'Laden…';
       ddHtml+=`<div class="dropdown-item ${c.id===d.id?'active':''}" onclick="selectDest('${c.id}')">
         <div><div class="dropdown-item-name">${c.name}</div><div class="dropdown-item-meta">${[c.car,c.train].filter(Boolean).join(' · ')}</div></div>
-        <div class="dropdown-wx" title="${cw.maxTemp}°C · ☀️${cw.sunHours}h">${wxIcon}</div>
+        <div class="dropdown-wx" title="${title}">${wxIcon}</div>
       </div>`;
     });
   });
@@ -1051,6 +1112,7 @@ function renderDestCard(d,zone,isAuto){
       </div>
     </div>
     <div class="weather-strip">
+      ${realBadge}
       <div class="weather-head ${hCls}">${hTxt}</div>
       <div class="weather-sub">${hSub}</div>
       ${outdoorBtn}
