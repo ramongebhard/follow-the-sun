@@ -156,6 +156,14 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 .tag-essen{background:#fdf0e0;color:#b05010;}
 .tag-event{background:#f5e0f5;color:#802080;}
 .tag-kinder{background:#fef9e0;color:#907010;}
+/* EVENT LINK BUTTON */
+.event-linkout{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid #e0c8f0;border-radius:var(--r);padding:14px 16px;margin-bottom:12px;cursor:pointer;text-decoration:none;transition:background .15s,border-color .15s;}
+.event-linkout:hover{background:#f8f0ff;border-color:#b070d0;}
+.event-linkout-icon{font-size:1.5rem;flex-shrink:0;}
+.event-linkout-body{flex:1;}
+.event-linkout-title{font-size:.85rem;font-weight:800;color:#802080;}
+.event-linkout-sub{font-size:.72rem;color:var(--text2);margin-top:2px;}
+.event-linkout-arrow{font-size:.9rem;color:#b070d0;flex-shrink:0;}
 .acard-desc{font-size:.78rem;color:var(--text2);line-height:1.5;margin-bottom:10px;}
 .acard-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .abtn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:99px;font-size:.72rem;font-weight:800;font-family:'Nunito',sans-serif;cursor:pointer;text-decoration:none;transition:all .15s;}
@@ -237,8 +245,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       <button class="chip"     data-f="museum"  onclick="setFilter('museum')">🏛 Museum</button>
       <button class="chip"     data-f="essen"   onclick="setFilter('essen')">🍽 Essen</button>
       <button class="chip"     data-f="kinder"  onclick="setFilter('kinder')">👶 Kind</button>
-      <!-- Event chip hidden until API integration -->
-      <!-- <button class="chip" data-f="event" onclick="setFilter('event')">🎉 Event</button> -->
+      <button class="chip"     data-f="event"   onclick="setFilter('event')" id="chip-event" style="display:none">🎉 Events</button>
     </div>
     <div class="act-list" id="act-list"></div>
   </div>
@@ -886,14 +893,15 @@ function buildWeatherChart(w){
   const xOf = i => padL + (i/(n-1)) * chartW;
   const yOf = t => padT + chartH - ((t-tMin)/(tMax-tMin)) * chartH;
 
-  // Rain bars (background)
+  // Rain bars (background) — fill + fill-opacity statt rgba für bessere SVG-Kompatibilität
   const rainBars = hrs.map((x,i)=>{
-    const bw = chartW/n * 0.85;
+    if(x.rain < 5) return ''; // Unter 5% nicht anzeigen
+    const bw = chartW/n * 0.75;
     const bx = xOf(i) - bw/2;
-    const bh = (x.rain/100) * chartH;
+    const bh = Math.max(3, (x.rain/100) * chartH); // Mindesthöhe 3px damit immer sichtbar
     const by = padT + chartH - bh;
-    const alpha = (x.rain/100 * 0.55 + 0.05).toFixed(2);
-    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="rgba(36,129,215,${alpha})" rx="2"/>`;
+    const opacity = (0.15 + (x.rain/100) * 0.55).toFixed(2);
+    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="#2481d7" fill-opacity="${opacity}" rx="2"/>`;
   }).join('');
 
   // Temp curve — smooth bezier
@@ -944,8 +952,137 @@ function buildWeatherChart(w){
   </svg>`;
 }
 
-function tl(t){ return {natur:'Natur',museum:'Museum',essen:'Essen',kinder:'Kind'}[t]||t; }
-function primaryTag(tags){const prio=['museum','essen','natur','kinder'];return prio.find(p=>tags.includes(p))||tags[0];}
+function tl(t){ return {natur:'Natur',museum:'Museum',essen:'Essen',kinder:'Kind',event:'Event'}[t]||t; }
+function primaryTag(tags){const prio=['museum','essen','natur','kinder','event'];return prio.find(p=>tags.includes(p))||tags[0];}
+
+/* ═══════════════ EVENTS SYSTEM ═══════════════
+   Köln: echte Daten via Stadt Köln Open Data API
+   Großstädte: Link-out zu Rausgegangen / Mit Vergnügen
+   Naturregionen: kein Events-Tab
+═══════════════════════════════════════════════ */
+
+// Welche Städte haben Events (und welche Art)
+const EVENT_CONFIG = {
+  koeln:       { type:'api+link', raus:'https://rausgegangen.de/cologne/', mitv:'https://koeln.mitvergnuegen.com/events/' },
+  bonn:        { type:'link',     raus:'https://rausgegangen.de/en/locations/bonn-innenstadt/', mitv:null },
+  duesseldorf: { type:'link',     raus:'https://rausgegangen.de/duesseldorf/', mitv:'https://duesseldorf.mitvergnuegen.com/events/' },
+  aachen:      { type:'link',     raus:'https://rausgegangen.de/en/aachen/', mitv:null },
+  muenster:    { type:'link',     raus:'https://rausgegangen.de/muenster/', mitv:null },
+  ruhrgebiet:  { type:'link',     raus:'https://rausgegangen.de/en/essen/', mitv:null },
+  amsterdam:   { type:'link',     raus:'https://rausgegangen.de/en/amsterdam/', mitv:null },
+  rotterdam:   { type:'link',     raus:'https://rausgegangen.de/en/rotterdam/', mitv:null },
+  // Naturregionen: kein Eintrag → kein Events-Tab
+};
+
+// Cache für Köln API Events
+let koelnEventsCache = null;
+let koelnEventsCacheDay = -1;
+
+async function fetchKoelnEvents(){
+  const today = new Date().getDate();
+  if(koelnEventsCache && koelnEventsCacheDay === today) return koelnEventsCache;
+
+  try {
+    // CORS-Proxy nötig da die Stadt Köln API kein CORS-Header hat
+    const proxy = 'https://api.allorigins.win/get?url=';
+    const apiUrl = encodeURIComponent('https://www.stadt-koeln.de/externe-dienste/open-data/events-od.php?ndays=2');
+    const res = await fetch(proxy + apiUrl);
+    const json = await res.json();
+    // allorigins gibt den Content als String zurück
+    const text = json.contents;
+    // Die API gibt PHP-Array-Notation zurück — wir parsen mit einem anderen Endpoint
+    const res2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.stadt-koeln.de/externe-dienste/open-data/events.json?ndays=2'));
+    const json2 = await res2.json();
+    const data = JSON.parse(json2.contents);
+    const events = (data.features||[]).slice(0,12).map(f=>({
+      name: f.properties?.title || f.properties?.name || 'Event',
+      desc: f.properties?.description || f.properties?.desc || '',
+      uhrzeit: f.properties?.uhrzeit || '',
+      ort: f.properties?.veranstaltungsort || '',
+      datum: f.properties?.beginndatum || '',
+      link: f.properties?.link || '',
+      tags: ['event'],
+    })).filter(e=>e.name);
+    koelnEventsCache = events;
+    koelnEventsCacheDay = today;
+    return events;
+  } catch(e) {
+    return [];
+  }
+}
+
+// Events für eine Stadt holen (für renderCards)
+let currentEvents = [];
+
+async function loadEventsForDest(id){
+  if(id === 'koeln'){
+    currentEvents = await fetchKoelnEvents();
+  } else {
+    currentEvents = [];
+  }
+}
+
+// Zeigt den Event-Chip an/ausblenden je nach Stadt
+function updateEventChip(id){
+  const chip = document.getElementById('chip-event');
+  if(!chip) return;
+  chip.style.display = EVENT_CONFIG[id] ? '' : 'none';
+}
+
+// Generiert Event-Cards HTML (Köln API Events + Link-out Buttons)
+function renderEventSection(id){
+  const cfg = EVENT_CONFIG[id];
+  if(!cfg) return '<div class="empty">Keine Events für diese Region verfügbar.</div>';
+
+  let html = '';
+
+  // Link-out Buttons
+  if(cfg.raus){
+    html += `<a class="event-linkout" href="${cfg.raus}" target="_blank">
+      <div class="event-linkout-icon">🎟️</div>
+      <div class="event-linkout-body">
+        <div class="event-linkout-title">Rausgegangen — Events heute</div>
+        <div class="event-linkout-sub">Konzerte · Flohmärkte · Ausstellungen · Partys</div>
+      </div>
+      <div class="event-linkout-arrow">→</div>
+    </a>`;
+  }
+  if(cfg.mitv){
+    html += `<a class="event-linkout" href="${cfg.mitv}" target="_blank">
+      <div class="event-linkout-icon">✨</div>
+      <div class="event-linkout-body">
+        <div class="event-linkout-title">Mit Vergnügen — Tipps & Events</div>
+        <div class="event-linkout-sub">Kuratierte Geheimtipps für die Stadt</div>
+      </div>
+      <div class="event-linkout-arrow">→</div>
+    </a>`;
+  }
+
+  // Köln: echte Events aus API (rotierend)
+  if(cfg.type === 'api+link' && currentEvents.length > 0){
+    html += `<div style="font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;">📅 Aktuelle Veranstaltungen</div>`;
+    currentEvents.forEach((e, i) => {
+      const mUrl = e.link || `https://www.google.com/search?q=${encodeURIComponent(e.name+' Köln')}`;
+      html += `<div class="acard" style="animation-delay:${i*.05}s">
+        <div class="acard-bar bar-event"></div>
+        <div class="acard-body">
+          <div class="acard-top">
+            <div class="acard-name">${e.name}</div>
+            <span class="tag tag-event">Event</span>
+          </div>
+          <div class="acard-desc">${e.uhrzeit ? '🕐 '+e.uhrzeit+'  ' : ''}${e.ort ? '📍 '+e.ort : ''}${e.desc ? '<br>'+e.desc.slice(0,100)+(e.desc.length>100?'…':'') : ''}</div>
+          <div class="acard-btns">
+            <a class="abtn abtn-primary" href="${mUrl}" target="_blank">🎟 Details</a>
+          </div>
+        </div>
+      </div>`;
+    });
+  } else if(cfg.type === 'api+link'){
+    html += `<div class="empty" style="font-size:.78rem;padding:16px 0;">Lade Events… oder nutze die Links oben.</div>`;
+  }
+
+  return html;
+}
 
 /* ═══════════════ DAY TOGGLE ═══════════════ */
 async function toggleDay(){
@@ -1158,7 +1295,7 @@ function showOutdoorEvents(){
 }
 
 /* ═══════════════ ACTIVITIES ═══════════════ */
-function showActivities(){
+async function showActivities(){
   activeFilter='alle';
   document.querySelectorAll('.chip[data-f]').forEach(c=>{
     c.classList.remove('on','off');
@@ -1170,6 +1307,13 @@ function showActivities(){
   document.getElementById('acts-sub').textContent=wxGood
     ?`Schönes Wetter ${dayLabel} — alles ist eine Option 🌿`
     :`${dayMode===0?'Heute':'Morgen'} lieber Indoor — Outdoor-Tipps ausgeblendet 🌧`;
+
+  // Event-Chip zeigen/verstecken je nach Stadt
+  updateEventChip(curDest.id);
+
+  // Events für Köln vorladen
+  if(curDest.id === 'koeln') loadEventsForDest(curDest.id);
+
   renderCards();
   const sec=document.getElementById('sec-activities');
   sec.classList.add('show');
@@ -1201,6 +1345,14 @@ function refreshPool(poolId, destId){
 
 function renderCards(){
   if(!curDest)return;
+  const el=document.getElementById('act-list');
+
+  // Event-Tab: komplett eigene Darstellung
+  if(activeFilter==='event'){
+    el.innerHTML=renderEventSection(curDest.id);
+    return;
+  }
+
   let allActs=curDest.activities(wxGood);
   // Resolve pools: one item per pool, using current index
   const seen={};
@@ -1212,7 +1364,6 @@ function renderCards(){
         const idx = shownPoolItems[a.pool]||0;
         const src = a.poolAll||[];
         const item = src.length>0 ? src[idx % src.length] : null;
-        // Merge: pool item overrides name/desc/maps/rq, but keep tags and pool from parent
         list.push(item ? {...item, tags:a.tags, pool:a.pool, poolAll:a.poolAll} : a);
       }
     } else {
@@ -1228,7 +1379,6 @@ function renderCards(){
   }
   if(!wxGood) list=[...list].sort((a,b)=>(a.tags[0]==='natur'?1:0)-(b.tags[0]==='natur'?1:0));
 
-  const el=document.getElementById('act-list');
   if(!list.length){el.innerHTML='<div class="empty">Keine Vorschläge für diesen Filter.</div>';return;}
 
   el.innerHTML=list.map((a,i)=>{
@@ -1253,6 +1403,24 @@ function renderCards(){
     </div>`;
   }).join('');
 }
+
+/* ═══════════════ PRELOAD ALLE STÄDTE BEIM START ═══════════════
+   Lädt Wetterdaten für alle Ziele im Hintergrund sofort beim Öffnen
+   → Dropdown ist danach sofort schnell
+═══════════════════════════════════════════════════════════════ */
+(async function preloadAll(){
+  // Alle Städte parallel laden für heute + morgen
+  // In Batches von 4 um den Server nicht zu überlasten
+  const ids = DEST.map(d => d.id);
+  const batchSize = 4;
+  for(let i = 0; i < ids.length; i += batchSize){
+    const batch = ids.slice(i, i + batchSize);
+    await Promise.all(batch.flatMap(id => [
+      fetchWeather(id, 0),
+      fetchWeather(id, 1)
+    ]));
+  }
+})();
 </script>
 </body>
 </html>
