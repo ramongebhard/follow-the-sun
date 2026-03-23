@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Follow the Sun</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0f4f8; --white:#fff; --blue:#1a6bb5; --blue2:#2481d7;
+  --blue-lt:#e8f1fb; --sky:linear-gradient(160deg,#1a6bb5 0%,#2e9cdf 100%);
+  --text:#1a1f2e; --text2:#4a5568; --muted:#8a96a8; --border:#e4eaf2;
+  --shadow:0 4px 24px rgba(26,107,181,0.10); --shadow2:0 2px 12px rgba(0,0,0,0.08);
+  --r:20px; --r-sm:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* HERO */
+.hero{position:relative;height:260px;background:linear-gradient(180deg,rgba(10,30,70,0.15) 0%,rgba(10,30,70,0.55) 100%),url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80') center/cover no-repeat;display:flex;flex-direction:column;justify-content:flex-end;padding:0 22px 28px;}
+.hero-greeting{font-size:.78rem;color:rgba(255,255,255,.75);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.hero-title{font-family:'Playfair Display',serif;font-size:2rem;color:#fff;line-height:1.2;font-weight:700;}
+.hero-title em{font-style:italic;font-weight:600;}
+.hero-badge{position:absolute;top:22px;right:22px;background:rgba(255,255,255,.22);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:7px 14px;font-size:.75rem;color:#fff;font-weight:600;display:flex;align-items:center;gap:6px;}
+
+/* SCROLL BODY */
+.scroll-body{padding:20px 16px 80px;max-width:480px;margin:0 auto;}
+.sec-label{font-size:.65rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.sec-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--text);margin-bottom:4px;}
+.sec-sub{font-size:.78rem;color:var(--text2);margin-bottom:16px;}
+
+/* JOYSTICK CARD */
+.jcard{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;margin-bottom:20px;}
+.arena{position:relative;width:260px;height:260px;margin:0 auto 16px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#eaf3fc 0%,#d8eaf8 100%);}
+.ring{position:absolute;border-radius:50%;border:1.5px solid rgba(36,129,215,.18);top:50%;left:50%;transform:translate(-50%,-50%);}
+.r4{width:240px;height:240px;} .r3{width:180px;height:180px;} .r2{width:120px;height:120px;} .r1{width:60px;height:60px;}
+/* Zone labels centered at top of each ring — center at 130px, radii: 30/60/90/120px */
+.ztick{position:absolute;font-size:.55rem;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;pointer-events:none;white-space:nowrap;left:50%;transform:translateX(-50%);}
+.zt-nah   {top:calc(130px - 30px + 4px);}   /* top of r1 ring + small padding */
+.zt-mittel{top:calc(130px - 60px + 4px);}   /* top of r2 ring */
+.zt-weit  {top:calc(130px - 90px + 4px);}   /* top of r3 ring */
+.zt-sehr  {top:calc(130px - 120px + 4px);}  /* top of r4 ring */
+#jh{position:absolute;width:48px;height:48px;border-radius:50%;background:var(--sky);box-shadow:0 4px 16px rgba(36,129,215,.45);left:130px;top:130px;transform:translate(-50%,-50%);cursor:grab;display:flex;align-items:center;justify-content:center;transition:box-shadow .15s;touch-action:none;z-index:10;}
+#jh:hover{box-shadow:0 6px 20px rgba(36,129,215,.55);}
+#jh.dragging{cursor:grabbing;box-shadow:0 8px 24px rgba(36,129,215,.6);}
+.zread{min-height:44px;text-align:center;}
+.zread-name{font-size:1.6rem;font-weight:800;color:var(--blue2);line-height:1;}
+.zread-detail{font-size:.75rem;color:var(--text2);margin-top:4px;}
+.zread-hint{font-size:.8rem;color:var(--muted);}
+
+/* HEUTE/MORGEN SLIDER */
+.day-slider-wrap{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;}
+.day-slider-label{font-size:.75rem;font-weight:800;color:var(--text2);}
+.day-slider-label.active{color:var(--blue2);}
+.day-toggle{position:relative;width:48px;height:26px;background:#d0dcea;border-radius:99px;cursor:pointer;border:none;transition:background .2s;flex-shrink:0;}
+.day-toggle.morgen{background:var(--blue2);}
+.day-toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform .2s;}
+.day-toggle.morgen::after{transform:translateX(22px);}
+
+/* DEST CARD */
+#sec-weather{display:none;margin-bottom:20px;}
+#sec-weather.show{display:block;animation:slideUp .45s cubic-bezier(.22,1,.36,1) both;}
+@keyframes slideUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+.dest-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;}
+.dest-img{position:relative;height:180px;background:#c8d8ea center/cover no-repeat;overflow:hidden;}
+.dest-img-overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.55) 100%);}
+.dest-img-label{position:absolute;bottom:14px;left:16px;right:16px;display:flex;align-items:flex-end;justify-content:space-between;}
+.dest-img-name{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:#fff;line-height:1.1;}
+.dest-img-travel{font-size:.7rem;color:rgba(255,255,255,.85);background:rgba(0,0,0,.3);backdrop-filter:blur(6px);padding:4px 10px;border-radius:99px;font-weight:600;white-space:nowrap;}
+.dest-row{padding:16px 18px 6px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.dest-row-left{flex:1;min-width:0;}
+.dest-row-name{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dest-row-travel{font-size:.7rem;color:var(--muted);margin-top:2px;font-weight:600;}
+.dest-best-badge{display:inline-flex;align-items:center;gap:4px;font-size:.6rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;background:#fff8e6;color:#c07010;border:1px solid #f0d080;border-radius:99px;padding:3px 9px;margin-top:5px;}
+
+/* DROPDOWN */
+.dest-dropdown-wrap{position:relative;flex-shrink:0;}
+.dest-dropdown-btn{display:flex;align-items:center;gap:6px;background:var(--blue-lt);border:2px solid var(--border);border-radius:var(--r-sm);padding:9px 13px;font-family:'Nunito',sans-serif;font-size:.75rem;font-weight:800;color:var(--blue2);cursor:pointer;transition:border-color .15s,background .15s;white-space:nowrap;}
+.dest-dropdown-btn:hover{border-color:var(--blue2);background:#d8ecfa;}
+.dest-dropdown-btn svg{transition:transform .2s;}
+.dest-dropdown-btn.open svg{transform:rotate(180deg);}
+.dest-dropdown-menu{
+  display:none;
+  position:absolute;
+  top:calc(100% + 6px);
+  right:0;
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  box-shadow:0 8px 32px rgba(0,0,0,.18);
+  width:240px;
+  z-index:999;
+  max-height:60vh;
+  overflow-y:auto;
+}
+.dest-dropdown-menu.open{display:block;animation:dropIn .18s cubic-bezier(.22,1,.36,1) both;}
+/* Make sure parent card doesn't clip the dropdown */
+.dest-card{overflow:visible !important;}
+.dest-row{overflow:visible;position:relative;z-index:10;}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+.dropdown-zone-label{font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:10px 14px 5px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;}
+.dropdown-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;gap:8px;}
+.dropdown-item:last-child{border-bottom:none;}
+.dropdown-item:hover{background:var(--blue-lt);}
+.dropdown-item.active{background:#e0f0fc;}
+.dropdown-item-name{font-size:.83rem;font-weight:700;color:var(--text);}
+.dropdown-item-meta{font-size:.65rem;color:var(--muted);margin-top:1px;}
+.dropdown-wx{font-size:1rem;flex-shrink:0;}
+.dropdown-item.active .dropdown-item-name{color:var(--blue2);}
+
+/* WEATHER STRIP */
+.weather-strip{padding:16px 18px 0;}
+.weather-head{font-size:1rem;font-weight:800;color:var(--text);margin-bottom:3px;}
+.weather-head.sun{color:#e07820;} .weather-head.ok{color:var(--text);} .weather-head.rain{color:#3a70b0;}
+.weather-sub{font-size:.78rem;color:var(--text2);margin-bottom:14px;}
+.outdoor-btn{display:inline-flex;align-items:center;gap:6px;background:#fff3e0;border:1.5px solid #f0c060;border-radius:99px;padding:7px 14px;font-size:.75rem;font-weight:800;color:#c07010;cursor:pointer;margin-bottom:14px;font-family:'Nunito',sans-serif;transition:background .15s;}
+.outdoor-btn:hover{background:#ffe8b0;}
+.forecast{display:flex;gap:10px;margin-bottom:16px;}
+.fc{flex:1;background:var(--blue-lt);border-radius:var(--r-sm);padding:12px 10px;text-align:center;}
+.fc-day{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;}
+.fc-icon{font-size:1.7rem;line-height:1;margin-bottom:4px;}
+.fc-temp{font-size:.9rem;font-weight:800;color:var(--text);}
+.fc-rain{font-size:.63rem;color:#5580aa;margin-top:2px;font-weight:600;}
+.fc-rain.dry{color:#4a9a5a;}
+.btn-explore{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 36px);margin:0 18px 18px;background:var(--sky);color:#fff;border:none;border-radius:var(--r-sm);padding:15px;font-family:'Nunito',sans-serif;font-size:.9rem;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(36,129,215,.35);transition:opacity .15s,transform .15s;letter-spacing:.01em;}
+.btn-explore:hover{opacity:.9;transform:translateY(-1px);}
+
+/* ACTIVITIES */
+#sec-activities{display:none;}
+#sec-activities.show{display:block;animation:slideUp .45s .1s cubic-bezier(.22,1,.36,1) both;}
+.chips{display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{padding:8px 16px;border-radius:99px;font-size:.75rem;font-weight:700;white-space:nowrap;border:2px solid var(--border);background:var(--white);color:var(--text2);font-family:'Nunito',sans-serif;cursor:pointer;transition:all .15s;box-shadow:var(--shadow2);}
+.chip:hover:not(.off){border-color:var(--blue2);color:var(--blue2);}
+.chip.on{background:var(--sky);border-color:transparent;color:#fff;box-shadow:0 3px 12px rgba(36,129,215,.3);}
+.chip.off{opacity:.35;cursor:default;}
+.act-list{display:flex;flex-direction:column;gap:12px;}
+.acard{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow2);overflow:hidden;display:flex;transition:transform .18s,box-shadow .18s;animation:slideUp .4s ease both;}
+.acard:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+.acard-bar{width:6px;flex-shrink:0;}
+.bar-natur{background:linear-gradient(180deg,#56b870,#3a9a5a);}
+.bar-museum{background:linear-gradient(180deg,#7080cc,#5060b8);}
+.bar-essen{background:linear-gradient(180deg,#e89040,#d07020);}
+.bar-event{background:linear-gradient(180deg,#c060c0,#a040a0);}
+.bar-kinder{background:linear-gradient(180deg,#e0b830,#c09010);}
+.acard-body{flex:1;padding:14px 16px 13px;}
+.acard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:5px;}
+.acard-name{font-size:.92rem;font-weight:800;color:var(--text);line-height:1.2;}
+.tag{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:99px;white-space:nowrap;flex-shrink:0;}
+.tag-natur{background:#e8f7ee;color:#2a7a3a;}
+.tag-museum{background:#eaebf8;color:#3040a0;}
+.tag-essen{background:#fdf0e0;color:#b05010;}
+.tag-event{background:#f5e0f5;color:#802080;}
+.tag-kinder{background:#fef9e0;color:#907010;}
+.acard-desc{font-size:.78rem;color:var(--text2);line-height:1.5;margin-bottom:10px;}
+.acard-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.abtn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:99px;font-size:.72rem;font-weight:800;font-family:'Nunito',sans-serif;cursor:pointer;text-decoration:none;transition:all .15s;}
+.abtn-primary{background:var(--blue-lt);color:var(--blue2);border:1.5px solid #c0d8f0;}
+.abtn-primary:hover{background:#c8e4f8;}
+.abtn-ghost{background:#f5f5f5;color:var(--text2);border:1.5px solid var(--border);}
+.abtn-ghost:hover{background:#ebebeb;}
+.abtn-refresh{background:transparent;border:none;color:var(--muted);padding:6px;cursor:pointer;border-radius:50%;transition:color .15s,transform .2s;}
+.abtn-refresh:hover{color:var(--blue2);transform:rotate(180deg);}
+.empty{text-align:center;padding:36px 16px;color:var(--muted);font-size:.85rem;}
+
+/* TAGS */
+.tag-natur,.tag-museum,.tag-essen,.tag-event,.tag-kinder{} /* already defined above */
+
+/* ── WEATHER CHART ── */
+.wx-chart-wrap{padding:0 18px 16px;}
+.wx-chart-label{font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.wx-chart-scroll{overflow-x:auto;scrollbar-width:none;}
+.wx-chart-scroll::-webkit-scrollbar{display:none;}
+.wx-chart-svg-wrap{min-width:380px;}
+
+/* SUN HOURS BADGE */
+.wx-sun-row{display:flex;align-items:center;gap:14px;padding:12px 18px 0;}
+.wx-sun-badge{display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:800;color:#e07820;}
+.wx-sun-bar-wrap{flex:1;height:6px;background:var(--border);border-radius:99px;overflow:hidden;}
+.wx-sun-bar{height:100%;background:linear-gradient(90deg,#f5c040,#f09020);border-radius:99px;transition:width .6s cubic-bezier(.22,1,.36,1);}
+
+/* CLOTHING */
+.wx-clothing{margin:0 18px 16px;background:var(--blue-lt);border-radius:var(--r-sm);padding:12px 14px;display:flex;align-items:flex-start;gap:10px;}
+.wx-clothing-icon{font-size:1.4rem;flex-shrink:0;line-height:1;}
+.wx-clothing-text{font-size:.8rem;color:var(--text);font-weight:700;line-height:1.5;}
+.wx-clothing-sub{font-size:.72rem;color:var(--text2);font-weight:400;margin-top:2px;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">☀️ Wochenend-Planer</div>
+  <div class="hero-greeting">Guten Tag</div>
+  <div class="hero-title">Wohin geht<br><em>die Reise heute?</em></div>
+</div>
+
+<div class="scroll-body">
+
+  <!-- HEUTE / MORGEN SLIDER -->
+  <div class="day-slider-wrap">
+    <span class="day-slider-label active" id="lbl-heute">Heute</span>
+    <button class="day-toggle" id="day-toggle" onclick="toggleDay()" title="Zwischen Heute und Morgen wechseln"></button>
+    <span class="day-slider-label" id="lbl-morgen">Morgen</span>
+  </div>
+
+  <!-- SECTION 1: JOYSTICK -->
+  <div class="sec-label">Entfernung wählen</div>
+  <div class="jcard">
+    <div class="arena" id="arena">
+      <div class="ring r4"></div><div class="ring r3"></div><div class="ring r2"></div><div class="ring r1"></div>
+      <span class="ztick zt-nah">Nah</span>
+      <span class="ztick zt-mittel">Mittel</span>
+      <span class="ztick zt-weit">Weit</span>
+      <span class="ztick zt-sehr">Sehr weit</span>
+      <div id="jh"><svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="5" fill="white"/><line x1="13" y1="1" x2="13" y2="5" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="13" y1="21" x2="13" y2="25" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="1" y1="13" x2="5" y2="13" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="21" y1="13" x2="25" y2="13" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="4.2" y1="4.2" x2="7.0" y2="7.0" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="19.0" y1="19.0" x2="21.8" y2="21.8" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="21.8" y1="4.2" x2="19.0" y2="7.0" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="7.0" y1="19.0" x2="4.2" y2="21.8" stroke="white" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="zread" id="zread"><div class="zread-hint">Joystick ziehen zum Auswählen</div></div>
+  </div>
+
+  <!-- SECTION 2: DESTINATION + WEATHER -->
+  <div id="sec-weather">
+    <div class="sec-label" id="sec-weather-label">Beste Empfehlung</div>
+    <div class="dest-card" id="dest-card"></div>
+  </div>
+
+  <!-- SECTION 3: ACTIVITIES -->
+  <div id="sec-activities">
+    <div class="sec-title" id="acts-title">Aktivitäten</div>
+    <div class="sec-sub" id="acts-sub"></div>
+    <div class="chips" id="chips">
+      <button class="chip on"  data-f="alle"    onclick="setFilter('alle')">Alle</button>
+      <button class="chip"     data-f="natur"   onclick="setFilter('natur')">🌿 Natur</button>
+      <button class="chip"     data-f="museum"  onclick="setFilter('museum')">🏛 Museum</button>
+      <button class="chip"     data-f="essen"   onclick="setFilter('essen')">🍽 Essen</button>
+      <button class="chip"     data-f="kinder"  onclick="setFilter('kinder')">👶 Kind</button>
+      <!-- Event chip hidden until API integration -->
+      <!-- <button class="chip" data-f="event" onclick="setFilter('event')">🎉 Event</button> -->
+    </div>
+    <div class="act-list" id="act-list"></div>
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════ IMAGES ═══════════════ */
+const DEST_IMAGES = {
+  koeln:            'https://images.unsplash.com/photo-1760556719567-6a3bf7dbe911?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  bonn:             'https://images.unsplash.com/photo-1683543517797-9c2d4a16786b?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  duesseldorf:      'https://images.unsplash.com/photo-1595077101107-4d5ae4ed2401?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  siebengebirge:    'https://images.unsplash.com/photo-1757069431176-d5212984195d?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  aachen:           'https://images.unsplash.com/photo-1761470129198-97179c08f398?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  eifel:            'https://images.unsplash.com/photo-1570372532050-56a0d3531567?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  maastricht:       'https://images.unsplash.com/photo-1647273922449-fb98bc3584f1?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  'bergisches-land':'https://images.unsplash.com/photo-1755589066709-ec12ec11baa1?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  niederrhein:      'https://images.unsplash.com/photo-1572187705418-2edb117e6048?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  muenster:         'https://images.unsplash.com/photo-1582525037719-52bbcc080f4e?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  koblenz:          'https://images.unsplash.com/photo-1618871551054-9f13828c5795?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  mosel:            'https://images.unsplash.com/photo-1641168557574-1345add5d32d?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  sauerland:        'https://images.unsplash.com/photo-1601803523667-e4966e534a17?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  ruhrgebiet:       'https://images.unsplash.com/photo-1610448300579-2ea96ca0f7ac?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  amsterdam:        'https://images.unsplash.com/photo-1682456696065-dfa525bcb352?auto=format&fit=crop&fm=jpg&q=80&w=800',
+  rotterdam:        'https://images.unsplash.com/photo-1578719437762-a5c4eae26375?auto=format&fit=crop&fm=jpg&q=80&w=800',
+};
+
+/* ═══════════════ DATA ═══════════════
+   pool: Gruppenname für Refresh-Button
+   poolAll: alle Optionen in dieser Kategorie
+   tags: ['primary'] — nur 1 primäres Tag, optional +kinder
+   KEIN event-Tag — erst wenn API kommt
+══════════════════════════════════════ */
+const DEST = [
+/* ── NAH ── */
+{ id:'koeln', zone:'nah', name:'Köln', car:null, train:'0 Min.',
+  activities(ok){ return [
+    // Natur (Pool: 3 Optionen)
+    {name:'Kölner Zoo',desc:'10.000 Tiere, einer der ältesten Zoos Deutschlands. Auch bei leichtem Regen schön.',tags:['natur'],maps:'Kölner Zoo',rq:null,
+      pool:'koeln-natur',poolAll:[
+        {name:'Kölner Zoo',desc:'10.000 Tiere, einer der ältesten Zoos Deutschlands.',maps:'Kölner Zoo',rq:null},
+        {name:'Rheinpark',desc:'Großzügiger Park am Rhein mit Liegewiesen und Rheinblick.',maps:'Rheinpark Köln',rq:null,ns:true},
+        {name:'Stadtwald',desc:'Großer Stadtwald mit Seen und Wegen — ideal für Spaziergänge.',maps:'Stadtwald Köln',rq:null,ns:true},
+      ]},
+    // Museum (Pool: 4 Optionen)
+    {name:'Museum Ludwig',desc:'Weltklasse moderne Kunst: Picasso, Pop Art, Expressionismus. Pflichtprogramm.',tags:['museum'],maps:'Museum Ludwig Köln',rq:'Museum Ludwig Köln Ausstellung',
+      pool:'koeln-museum',poolAll:[
+        {name:'Museum Ludwig',desc:'Weltklasse moderne Kunst: Picasso, Pop Art, Expressionismus. Pflichtprogramm.',maps:'Museum Ludwig Köln',rq:'Museum Ludwig Köln Ausstellung'},
+        {name:'Kolumba',desc:'Kunstmuseum des Erzbistums — außergewöhnlich ruhig, zeitgenössische Kunst über mittelalterlichen Fundamenten.',maps:'Kolumba Kunstmuseum Köln',rq:'Kolumba Köln'},
+        {name:'NS-Dokumentationszentrum',desc:'Das EL-DE-Haus dokumentiert die NS-Geschichte Kölns. Wichtig und sehr gut gemacht.',maps:'NS-Dokumentationszentrum EL-DE-Haus Köln',rq:'EL-DE Haus Köln'},
+        {name:'Rautenstrauch-Joest-Museum',desc:'Völkerkundemuseum mit beeindruckender Dauerausstellung über Kulturen der Welt. Unterschätzt.',maps:'Rautenstrauch-Joest-Museum Köln',rq:'Rautenstrauch Joest Museum'},
+        {name:'Schokoladenmuseum',desc:'Geschichte der Schokolade — Kinder lieben den Schokoladenbrunnen. Ab 4 Jahren ideal.',maps:'Schokoladenmuseum Köln',rq:'Schokoladenmuseum Köln'},
+        {name:'Kölner Dom',desc:'UNESCO-Welterbe — innen und außen beeindruckend zu jeder Jahreszeit.',maps:'Kölner Dom',rq:null},
+      ]},
+    // Kinder (Pool: 3 Optionen)
+    {name:'Phantasialand',desc:'Einer der besten Freizeitparks Deutschlands, direkt bei Köln. Ab 4 Jahren Pflicht!',tags:['kinder'],maps:'Phantasialand Brühl',rq:null,
+      pool:'koeln-kinder',poolAll:[
+        {name:'Phantasialand',desc:'Einer der besten Freizeitparks Deutschlands, direkt bei Köln.',maps:'Phantasialand Brühl',rq:null},
+        {name:'Stadtwald Spielplatz',desc:'Riesiger Naturspielplatz am Großen Teich. Enten füttern, klettern, toben — für 4–8 Jährige.',maps:'Stadtwald Köln Spielplatz',rq:null,ns:true},
+        {name:'Schokoladenmuseum',desc:'Der Schokoladenbrunnen begeistert Kinder immer wieder. Ab 4 Jahren ideal.',maps:'Schokoladenmuseum Köln',rq:'Schokoladenmuseum Köln'},
+      ]},
+    // Essen (Pool: 7 Restaurants)
+    {name:'Poisson',desc:'Kölns bestes Fischrestaurant. Michelin-empfohlen, kreative Fischküche, offene Küche.',tags:['essen'],maps:'Poisson Restaurant Köln Wolfsstraße',rq:'Poisson Köln',
+      pool:'koeln-essen',poolAll:[
+        {name:'Poisson',desc:'Kölns bestes Fischrestaurant. Michelin-empfohlen, kreative Fischküche, offene Küche.',maps:'Poisson Restaurant Köln Wolfsstraße',rq:'Poisson Köln'},
+        {name:'Brauhaus Johann Schäfer',desc:'Modernes Südstadt-Brauhaus mit eigenem Bier, regionaler Küche und großer Terrasse.',maps:'Brauhaus Johann Schäfer Köln',rq:'Johann Schäfer Köln'},
+        {name:'Bagatelle',desc:'Szenelokal in der Südstadt. Tolle Weinauswahl, entspannte Atmosphäre.',maps:'Bagatelle Köln Teutoburger Straße',rq:'Bagatelle Köln'},
+        {name:'Sweet Sushi',desc:'Beliebtes Sushi-Restaurant in Köln. Frisch, fair bepreist.',maps:'Sweet Sushi Köln',rq:'Sweet Sushi Köln'},
+        {name:'Tiger Milch',desc:'Internationales Restaurant mit peruanischem Einfluss. Lebhaftes Ambiente.',maps:'Tiger Milch Köln',rq:'Tiger Milch Köln'},
+        {name:'Tô 80 Vegan',desc:'Veganes vietnamesisches Street Food — Bowls, Sushi, Baos. Auch für Nicht-Vegetarier.',maps:'To80 Vegan Köln',rq:'To80 Vegan Köln'},
+        {name:'NENI Köln',desc:'Israelisch-mediterranes Restaurant im Friesenviertel. Kreative Küche, vegane Optionen.',maps:'NENI Köln',rq:'NENI Köln'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'bonn', zone:'nah', name:'Bonn', car:'28 Min.', train:'20 Min.',
+  activities(ok){ return [
+    {name:'Haus der Geschichte',desc:'Kostenloses Museum über Deutschland nach 1945. Interaktiv und spannend aufbereitet.',tags:['museum'],maps:'Haus der Geschichte Bonn',rq:'Haus der Geschichte Bonn',
+      pool:'bonn-museum',poolAll:[
+        {name:'Haus der Geschichte',desc:'Kostenloses Museum über Deutschland nach 1945. Interaktiv und spannend.',maps:'Haus der Geschichte Bonn',rq:'Haus der Geschichte Bonn'},
+        {name:'Bundeskunsthalle',desc:'Wechselnde Großausstellungen auf höchstem Niveau.',maps:'Bundeskunsthalle Bonn',rq:'Bundeskunsthalle Bonn'},
+        {name:'Beethoven-Haus',desc:'Geburtshaus Beethovens, jetzt Museum. Für Musikinteressierte ein Erlebnis.',maps:'Beethoven-Haus Bonn',rq:'Beethoven Haus Bonn'},
+      ]},
+    {name:'Botanischer Garten Bonn',desc:'Einer der ältesten Botanischen Gärten Deutschlands. Ruhig und schön.',tags:['natur'],maps:'Botanischer Garten Bonn',rq:null,
+      pool:'bonn-natur',poolAll:[
+        {name:'Botanischer Garten Bonn',desc:'Einer der ältesten Botanischen Gärten Deutschlands.',maps:'Botanischer Garten Bonn',rq:null},
+        {name:'Rheinaue Park',desc:'Großer Freizeitpark mit See und Tretbooten. Schöne Natur, Picknickwiesen.',maps:'Rheinaue Bonn',rq:null,ns:true},
+      ]},
+    {name:'Drachenburg Königswinter',desc:'Märchenhaftes Schloss über dem Rhein, per Drachenfelsbahn erreichbar. Für Kinder wie aus einem Bilderbuch.',tags:['kinder'],maps:'Schloss Drachenburg Königswinter',rq:'Drachenburg Königswinter',
+      pool:'bonn-kinder',poolAll:[
+        {name:'Drachenburg Königswinter',desc:'Märchenschloss über dem Rhein, per Bahn erreichbar.',maps:'Schloss Drachenburg Königswinter',rq:'Drachenburg Königswinter'},
+        {name:'Botanischer Garten',desc:'Mit dem tropischen Gewächshaus ein Erlebnis für neugierige Kinder.',maps:'Botanischer Garten Bonn',rq:null},
+      ]},
+    {name:'Bono Fresh and Tasty',desc:'Frische mediterrane Küche mit Fokus auf Fisch & leichten Gerichten. Sehr gute Preis-Leistung.',tags:['essen'],maps:'Bono Fresh and Tasty Bonn',rq:'Bono Bonn',
+      pool:'bonn-essen',poolAll:[
+        {name:'Bono Fresh and Tasty',desc:'Frische mediterrane Küche mit Fokus auf Fisch.',maps:'Bono Fresh and Tasty Bonn',rq:'Bono Bonn'},
+        {name:'Elefant Bonn',desc:'Klassisches deutsches Restaurant mit saisonalen und regionalen Gerichten.',maps:'Elefant Restaurant Bonn',rq:'Elefant Bonn'},
+        {name:'Déjà Vu bei Mario',desc:'Modern-europäisch, kreative Küche, lockere Atmosphäre.',maps:'Déjà Vu Restaurant Bonn',rq:'Deja Vu Mario Bonn'},
+        {name:'Tuscolo',desc:'Pizza & italienische Küche. Gut für Gruppen und Familien.',maps:'Tuscolo Bonn',rq:'Tuscolo Bonn'},
+        {name:'von & zu',desc:'Internationaler Mix mit kreativen Gerichten.',maps:'von und zu Restaurant Bonn',rq:'von zu Bonn'},
+        {name:'Restaurant Hanedan',desc:'Mediterran inspiriert mit gewürzten Gerichten. Beliebt bei Einheimischen.',maps:'Hanedan Restaurant Bonn',rq:'Hanedan Bonn'},
+        {name:'Remise Bonn',desc:'Stilvolles Restaurant, viele vegetarische Optionen.',maps:'Remise Restaurant Bonn',rq:'Remise Bonn'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'duesseldorf', zone:'nah', name:'Düsseldorf', car:'40 Min.', train:'22 Min.',
+  activities(ok){ return [
+    {name:'K20 Grabbeplatz',desc:'Kunstsammlung NRW — exzellente Sammlung moderner Kunst. Weltklasse.',tags:['museum'],maps:'K20 Düsseldorf',rq:'K20 Düsseldorf Ausstellung',
+      pool:'duesseldorf-museum',poolAll:[
+        {name:'K20 Grabbeplatz',desc:'Kunstsammlung NRW — exzellente Sammlung moderner Kunst.',maps:'K20 Düsseldorf',rq:'K20 Düsseldorf Ausstellung'},
+        {name:'Museum Kunstpalast',desc:'Starke Sammlung Renaissance bis Gegenwart. Unterschätzt und lohnenswert.',maps:'Museum Kunstpalast Düsseldorf',rq:'Museum Kunstpalast Düsseldorf'},
+      ]},
+    {name:'Altstadt & Rheinpromenade',desc:'Längste Theke der Welt, Stadtspaziergang am Rhein. Auch bei Regen angenehm.',tags:['natur'],maps:'Düsseldorf Altstadt',rq:null,
+      pool:'duesseldorf-natur',poolAll:[
+        {name:'Altstadt & Rheinpromenade',desc:'Längste Theke der Welt, Spaziergang am Rhein.',maps:'Düsseldorf Altstadt',rq:null},
+        {name:'Carlsplatz Markt',desc:'Schöner Markt in der Altstadt. Frische Produkte, tolle Imbisse.',maps:'Carlsplatz Düsseldorf',rq:null,ns:true},
+      ]},
+    {name:'Aquazoo Löbbecke',desc:'Modernes Aquarium und Zoo in einem — Krokodile, Schmetterlinge, tropische Fische. Ab 4 Jahren begeisternd.',tags:['kinder'],maps:'Aquazoo Düsseldorf',rq:null,
+      pool:'duesseldorf-kinder',poolAll:[
+        {name:'Aquazoo Löbbecke',desc:'Modernes Aquarium und Zoo in einem. Ab 4 Jahren begeisternd.',maps:'Aquazoo Düsseldorf',rq:null},
+      ]},
+    {name:'Bob & Mary',desc:'Kultiger Burger-Laden in der Altstadt — frisch, ehrlich, keine Kompromisse.',tags:['essen'],maps:'Bob und Mary Düsseldorf Altstadt',rq:'Bob Mary Düsseldorf',
+      pool:'duesseldorf-essen',poolAll:[
+        {name:'Bob & Mary',desc:'Kultiger Burger-Laden in der Altstadt — frisch, keine Kompromisse.',maps:'Bob und Mary Düsseldorf Altstadt',rq:'Bob Mary Düsseldorf'},
+        {name:'Uerige Stube',desc:'Das echte Düsseldorfer Brauhaus. Altbier direkt vom Fass.',maps:'Uerige Düsseldorf',rq:'Uerige Düsseldorf'},
+        {name:'Casita Mexicana',desc:'Authentisches mexikanisches Restaurant. Hausgemachte Tortillas, Margaritas.',maps:'Casita Mexicana Düsseldorf',rq:'Casita Mexicana Düsseldorf'},
+        {name:'Yabase',desc:'Feines Sushi-Restaurant. Frisch, qualitätsbewusst.',maps:'Yabase Düsseldorf',rq:'Yabase Düsseldorf'},
+        {name:'Sattgrün',desc:'Vegetarisch & vegan. Leicht, frisch, entspannte Atmosphäre.',maps:'Sattgrün Düsseldorf',rq:'Sattgrün Düsseldorf'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'bergisches-land', zone:'nah', name:'Bergisches Land', car:'35–45 Min.', train:'40–60 Min.',
+  activities(ok){ return [
+    {name:'Schloss Burg',desc:'Mittelalterliche Burg mit Museum und Panoramablick. Auch bei Regen schön.',tags:['museum'],maps:'Schloss Burg Solingen',rq:'Schloss Burg',
+      pool:'bergland-museum',poolAll:[
+        {name:'Schloss Burg',desc:'Mittelalterliche Burg mit Museum und Panoramablick.',maps:'Schloss Burg Solingen',rq:'Schloss Burg'},
+        {name:'Altenberger Dom',desc:'Gotische Kathedrale mitten im Wald — beeindruckend und sehr ruhig.',maps:'Altenberger Dom',rq:null},
+        {name:'Wuppertaler Schwebebahn',desc:'Die älteste Schwebebahn der Welt — technisches Wunder und Familienausflug.',maps:'Wuppertaler Schwebebahn',rq:'Schwebebahn Wuppertal'},
+      ]},
+    {name:'Müngstener Brücke',desc:'Höchste Eisenbahnbrücke Deutschlands. Toller Wanderweg drumherum, Naturpark.',tags:['natur'],maps:'Müngstener Brücke',rq:null,ns:true,
+      pool:'bergland-natur',poolAll:[
+        {name:'Müngstener Brücke',desc:'Höchste Eisenbahnbrücke Deutschlands mit schönem Wanderweg.',maps:'Müngstener Brücke',rq:null,ns:true},
+        {name:'Wupper-Wanderweg',desc:'Schöne Wanderwege entlang der Wupper durch Wälder und Täler.',maps:'Wupperwanderweg',rq:null,ns:true},
+      ]},
+    {name:'Tierpark Fauna Solingen',desc:'Kleiner, feiner Tierpark mit über 300 Tieren. Für Kinder von 4–8 Jahren ideal.',tags:['kinder'],maps:'Tierpark Fauna Solingen',rq:null,
+      pool:'bergland-kinder',poolAll:[
+        {name:'Tierpark Fauna Solingen',desc:'Kleiner, feiner Tierpark mit über 300 Tieren.',maps:'Tierpark Fauna Solingen',rq:null},
+        {name:'Burg Beyenburg',desc:'Malerische Ruine mit Klosterkirche am Wupperufer. Kleines Café daneben.',maps:'Burg Beyenburg Wuppertal',rq:null,ns:true},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+/* ── MITTEL ── */
+{ id:'siebengebirge', zone:'mittel', name:'Siebengebirge', car:'40 Min.', train:'30 Min. + Bus',
+  activities(ok){ return [
+    {name:'Siebengebirgsmuseum',desc:'Geschichte der Region und des Drachenfels. Klein, fein und kurzweilig.',tags:['museum'],maps:'Siebengebirgsmuseum Königswinter',rq:null,
+      pool:'sieben-museum',poolAll:[
+        {name:'Siebengebirgsmuseum',desc:'Geschichte der Region und des Drachenfels.',maps:'Siebengebirgsmuseum Königswinter',rq:null},
+      ]},
+    {name:'Drachenfels',desc:'Burgruine mit spektakulärem Rheinblick. Per Bahn oder zu Fuß — ein Abenteuer.',tags:['natur'],maps:'Drachenfels Königswinter',rq:null,ns:true,
+      pool:'sieben-natur',poolAll:[
+        {name:'Drachenfels',desc:'Burgruine mit spektakulärem Rheinblick. Per Zahnradbahn.',maps:'Drachenfels Königswinter',rq:null,ns:true},
+        {name:'Wanderung Stenzelberg',desc:'Wunderschöne Wanderroute mit Felsatmosphäre und Aussichten.',maps:'Stenzelberg Siebengebirge',rq:null,ns:true},
+        {name:'Petersberg Panorama',desc:'Panoramaweg über dem Rhein. Ehemaliges Gästehaus der Bundesregierung.',maps:'Petersberg Königswinter',rq:null,ns:true},
+        {name:'Rhöndorfer See',desc:'Kleiner idyllischer See am Fuß des Siebengebirges.',maps:'Rhöndorfer See',rq:null,ns:true},
+      ]},
+    {name:'Märchenwald Freizeitpark',desc:'Klassischer Märchenwald im Siebengebirge. Für Kinder von 3–8 Jahren ein Traum.',tags:['kinder'],maps:'Märchenwald Freizeitpark Königswinter',rq:null,
+      pool:'sieben-kinder',poolAll:[
+        {name:'Märchenwald Freizeitpark',desc:'Klassischer Märchenwald. Für Kinder von 3–8 Jahren ein Traum.',maps:'Märchenwald Freizeitpark Königswinter',rq:null},
+        {name:'Drachenfels Bahn',desc:'Fahrt mit der Zahnradbahn auf den Drachenfels — für Kinder aufregend.',maps:'Drachenfels Königswinter',rq:null,ns:true},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'aachen', zone:'mittel', name:'Aachen', car:'65 Min.', train:'50 Min.',
+  activities(ok){ return [
+    {name:'Aachener Dom',desc:'Erstes UNESCO-Welterbe Deutschlands, Krönungsort der Kaiser. Absolut beeindruckend.',tags:['museum'],maps:'Aachener Dom',rq:null,
+      pool:'aachen-museum',poolAll:[
+        {name:'Aachener Dom',desc:'Erstes UNESCO-Welterbe Deutschlands, Krönungsort der Kaiser.',maps:'Aachener Dom',rq:null},
+        {name:'Centre Charlemagne',desc:'Stadtmuseum über Karls des Großen Aachen. Modern und gut gemacht.',maps:'Centre Charlemagne Aachen',rq:'Centre Charlemagne'},
+      ]},
+    {name:'Carolus Thermen',desc:'Thermalbadespaß direkt in der Stadt. Kinderbereich, Saunalandschaft. Perfekt bei Regen.',tags:['natur'],maps:'Carolus Thermen Aachen',rq:null,
+      pool:'aachen-natur',poolAll:[
+        {name:'Carolus Thermen',desc:'Thermalbadespaß direkt in der Stadt.',maps:'Carolus Thermen Aachen',rq:null},
+      ]},
+    {name:'Aachener Tierpark',desc:'Schöner Tierpark im Stadtwald. Für Kinder ab 3 Jahren ideal, günstiger Eintritt.',tags:['kinder'],maps:'Tierpark Aachen',rq:null,
+      pool:'aachen-kinder',poolAll:[
+        {name:'Aachener Tierpark',desc:'Schöner Tierpark im Stadtwald. Für Kinder ab 3 Jahren.',maps:'Tierpark Aachen',rq:null},
+        {name:'Carolus Thermen Kinderbereich',desc:'Warme Bäder und Wasserrutschen — Kinder lieben es.',maps:'Carolus Thermen Aachen',rq:null},
+      ]},
+    {name:'La Bécasse',desc:'Michelin-Stern-Restaurant mit feiner französischer Küche. Für besondere Anlässe reservieren.',tags:['essen'],maps:'La Becasse Aachen Hanbrucher Straße',rq:'La Becasse Aachen',
+      pool:'aachen-essen',poolAll:[
+        {name:'La Bécasse',desc:'Michelin-Stern-Restaurant. Feine französische Küche für besondere Anlässe.',maps:'La Becasse Aachen Hanbrucher Straße',rq:'La Becasse Aachen'},
+        {name:'Zuhause',desc:'Bodenständig-gemütliches Restaurant im Pontviertel. Gutbürgerliche Küche.',maps:'Zuhause Restaurant Aachen',rq:'Zuhause Aachen Restaurant'},
+        {name:'Café Kittel',desc:'Studentenliebling im Pontviertel. Lässige Atmosphäre, gute Küche.',maps:'Café Kittel Aachen',rq:'Café Kittel Aachen'},
+        {name:'Sushi Bar Umai',desc:'Gutes Sushi-Restaurant in Aachen. Frisch, faire Preise.',maps:'Sushi Bar Umai Aachen',rq:'Sushi Umai Aachen'},
+        {name:'AKL Libanesisches Restaurant',desc:'Authentische libanesische Küche. Mezze, Grill, Shawarma.',maps:'AKL Libanesisches Restaurant Aachen Pontstraße',rq:'AKL Aachen'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'eifel', zone:'mittel', name:'Eifel', car:'60–75 Min.', train:'60 Min. + Bus',
+  activities(ok){ return [
+    {name:'Burg Eltz',desc:'Eines der schönsten Schlösser Deutschlands, noch im Familienbesitz. Für Kinder wie aus einem Märchen.',tags:['museum'],maps:'Burg Eltz',rq:'Burg Eltz',
+      pool:'eifel-museum',poolAll:[
+        {name:'Burg Eltz',desc:'Eines der schönsten Schlösser Deutschlands, noch im Familienbesitz.',maps:'Burg Eltz',rq:'Burg Eltz'},
+        {name:'Nürburg & Nürburgring',desc:'Historische Burg über dem legendären Nürburgring. Motorsportmuseum.',maps:'Nürburg Eifel',rq:'Nürburg'},
+        {name:'Kloster Maria Laach',desc:'Romanische Abtei am Laacher See — mächtig und beeindruckend.',maps:'Kloster Maria Laach',rq:null},
+      ]},
+    {name:'Laacher See',desc:'Einzigartiger Vulkankratersee — Baden, Paddeln, Spazieren. Im Sommer traumhaft.',tags:['natur'],maps:'Laacher See',rq:null,ns:true,
+      pool:'eifel-natur',poolAll:[
+        {name:'Laacher See',desc:'Einzigartiger Vulkankratersee. Im Sommer traumhaft.',maps:'Laacher See',rq:null,ns:true},
+        {name:'Gemündener Maar',desc:'Kleiner Kratersee mit kristallklarem Wasser. Wanderung rund um den See.',maps:'Gemündener Maar Daun',rq:null,ns:true},
+        {name:'Vulkaneifel Wanderweg',desc:'Spektakuläre Wanderrouten durch Krater, Maare und Buchenwälder.',maps:'Vulkaneifel Wanderweg Daun',rq:null,ns:true},
+      ]},
+    {name:'Burg Eltz Kinderführung',desc:'Burg Eltz bietet spezielle Kinderführungen an — Ritter, Schwerter und Burgleben für 4–8 Jährige.',tags:['kinder'],maps:'Burg Eltz',rq:'Burg Eltz',
+      pool:'eifel-kinder',poolAll:[
+        {name:'Burg Eltz Kinderführung',desc:'Spezielle Kinderführungen — Ritter, Schwerter, Burgleben.',maps:'Burg Eltz',rq:'Burg Eltz'},
+        {name:'Nürburgring Erlebniswelt',desc:'Motorsport-Erlebniswelt mit interaktiven Stationen. Für Kinder ab 5 spannend.',maps:'Nürburg Eifel',rq:'Nürburg'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'maastricht', zone:'mittel', name:'Maastricht', car:'75 Min.', train:'60 Min.',
+  activities(ok){ return [
+    {name:'Bonnefantenmuseum',desc:'Markantes Museum mit regionaler und zeitgenössischer Kunst. Architektonisch ein Highlight.',tags:['museum'],maps:'Bonnefantenmuseum Maastricht',rq:'Bonnefantenmuseum',
+      pool:'maastricht-museum',poolAll:[
+        {name:'Bonnefantenmuseum',desc:'Markantes Museum mit regionaler und zeitgenössischer Kunst.',maps:'Bonnefantenmuseum Maastricht',rq:'Bonnefantenmuseum'},
+        {name:'Kazematten (Festungsgänge)',desc:'Unterirdische Festungsgänge unter der Stadt — spannend wie ein Abenteuer.',maps:'Kazematten Maastricht',rq:'Kazematten Maastricht'},
+      ]},
+    {name:'Altstadt & Vrijthof',desc:'Eine der schönsten Innenstädte der Region. Flanieren, Waffeln essen, tolle Architektur.',tags:['natur'],maps:'Vrijthof Maastricht',rq:null,
+      pool:'maastricht-natur',poolAll:[
+        {name:'Altstadt & Vrijthof',desc:'Flanieren, Waffeln essen, tolle Architektur.',maps:'Vrijthof Maastricht',rq:null},
+      ]},
+    {name:'Kazematten Kinderentdeckung',desc:'Unterirdische Gänge unter Maastricht — Kinder lieben das Abenteuer unter der Stadt.',tags:['kinder'],maps:'Kazematten Maastricht',rq:'Kazematten Maastricht',
+      pool:'maastricht-kinder',poolAll:[
+        {name:'Kazematten Kinderentdeckung',desc:'Unterirdische Gänge unter der Stadt — Abenteuer für Kinder.',maps:'Kazematten Maastricht',rq:'Kazematten Maastricht'},
+      ]},
+    {name:"Harry's",desc:'Internationale Brasserie, Michelin-empfohlen, frische Zutaten aus eigenem Garten.',tags:['essen'],maps:"Harry's Brasserie Maastricht Wyck",rq:"Harry's Maastricht",
+      pool:'maastricht-essen',poolAll:[
+        {name:"Harry's",desc:'Internationale Brasserie, Michelin-empfohlen.',maps:"Harry's Brasserie Maastricht Wyck",rq:"Harry's Maastricht"},
+        {name:'Café Sjiek',desc:'Das Kult-Café — laut Einheimischen Pflicht. Von Austern bis Lokales.',maps:'Café Sjiek Maastricht Grote Looierstraat',rq:'Café Sjiek Maastricht'},
+        {name:'Bold Rooftopbar',desc:'Rooftop-Restaurant mit Skyline-Blick. Cocktails, kleine Gerichte.',maps:'Bold Rooftop Maastricht',rq:'Bold Rooftop Maastricht'},
+        {name:'Kaishu',desc:'Japanisches Sushi-Restaurant. Frisch, hochwertig.',maps:'Kaishu Sushi Maastricht',rq:'Kaishu Maastricht'},
+        {name:'Umami by Han',desc:'Asiatische Fusionsküche, Michelin Bib Gourmand.',maps:'Umami by Han Maastricht Stationsstraat',rq:'Umami Han Maastricht'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'niederrhein', zone:'mittel', name:'Niederrhein', car:'50–70 Min.', train:'60–80 Min.',
+  activities(ok){ return [
+    {name:'Archäologischer Park Xanten',desc:'Römische Stadt zum Anfassen — Gladiatorenschule, Amphitheater. Für Kinder super.',tags:['museum'],maps:'Archäologischer Park Xanten',rq:'Archäologischer Park Xanten',
+      pool:'niederrhein-museum',poolAll:[
+        {name:'Archäologischer Park Xanten',desc:'Römische Stadt zum Anfassen — Gladiatorenschule, Amphitheater.',maps:'Archäologischer Park Xanten',rq:'Archäologischer Park Xanten'},
+        {name:'LVR-RömerMuseum Xanten',desc:'Modernes Museum direkt am Archäologischen Park. Interaktiv.',maps:'LVR RömerMuseum Xanten',rq:'LVR RömerMuseum Xanten'},
+        {name:'Burg Linn Krefeld',desc:'Mittelalterliche Wasserburg mit Burgmuseum und Park.',maps:'Burg Linn Krefeld',rq:null},
+      ]},
+    {name:'Alter Rhein Xanten',desc:'Malerischer Altrhein-See mit Sandstrand, Liegewiesen und Wassersport.',tags:['natur'],maps:'Freizeitzentrum Xanten Alter Rhein',rq:null,ns:true,
+      pool:'niederrhein-natur',poolAll:[
+        {name:'Alter Rhein Xanten',desc:'Malerischer Altrhein-See mit Sandstrand und Wassersport.',maps:'Freizeitzentrum Xanten Alter Rhein',rq:null,ns:true},
+        {name:'Niederrhein Radtour',desc:'Flache Wege, Windmühlen, weite Felder — perfekt für Familien.',maps:'Radtour Niederrhein Xanten',rq:null,ns:true},
+        {name:'Baggersee Moersbach',desc:'Schöner Badesee am Niederrhein, ruhige Natur.',maps:'Baggersee Moersbach Niederrhein',rq:null,ns:true},
+      ]},
+    {name:'Römerpark Xanten für Kinder',desc:'Gladiatoren, Tempel, Handwerk hautnah — Kinder erleben die Römerzeit.',tags:['kinder'],maps:'Archäologischer Park Xanten',rq:'Archäologischer Park Xanten',
+      pool:'niederrhein-kinder',poolAll:[
+        {name:'Römerpark Xanten für Kinder',desc:'Gladiatoren, Tempel und Römerzeit erleben.',maps:'Archäologischer Park Xanten',rq:'Archäologischer Park Xanten'},
+        {name:'Burg Linn mit Kindern',desc:'Mittelalterliche Wasserburg und Park — für Kinder toll.',maps:'Burg Linn Krefeld',rq:null},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'muenster', zone:'mittel', name:'Münster', car:'80 Min.', train:'70 Min.',
+  activities(ok){ return [
+    {name:'Dom zu Münster',desc:'Imposanter Romanisch-gotischer Dom mit historischer Uhr und Automaten.',tags:['museum'],maps:'Dom zu Münster',rq:null,
+      pool:'muenster-museum',poolAll:[
+        {name:'Dom zu Münster',desc:'Imposanter Dom mit historischer Uhr und Automaten.',maps:'Dom zu Münster',rq:null},
+        {name:'Wasserschloss Nordkirchen',desc:'Das "westfälische Versailles" mit schönem Barockpark.',maps:'Wasserschloss Nordkirchen',rq:null},
+        {name:'Mühlenhof Freilichtmuseum',desc:'Lebendiges Freilichtmuseum mit Windmühlen und altem Handwerk.',maps:'Mühlenhof Freilichtmuseum Münster',rq:null},
+      ]},
+    {name:'Aasee Münster',desc:'Schöner See mitten in Münster. Rundweg, Tretboote, Liegewiesen.',tags:['natur'],maps:'Aasee Münster',rq:null,ns:true,
+      pool:'muenster-natur',poolAll:[
+        {name:'Aasee Münster',desc:'Schöner See mit Rundweg, Tretbooten, Liegewiesen.',maps:'Aasee Münster',rq:null,ns:true},
+      ]},
+    {name:'Allwetterzoo Münster',desc:'Großer Zoo mit Unterwasserwelt und Delphinarium. Für Kinder von 4–8 Jahren begeisternd.',tags:['kinder'],maps:'Allwetterzoo Münster',rq:null,
+      pool:'muenster-kinder',poolAll:[
+        {name:'Allwetterzoo Münster',desc:'Großer Zoo mit Unterwasserwelt und Delphinarium.',maps:'Allwetterzoo Münster',rq:null},
+        {name:'Mühlenhof Freilichtmuseum',desc:'Alte Windmühlen und Bauernhäuser — lebendig und für Kinder toll.',maps:'Mühlenhof Freilichtmuseum Münster',rq:null},
+      ]},
+    {name:'Fischbrathalle',desc:'Münster-Institution seit 1926. Frischer Backfisch, Muscheln, Scholle — nur mittags.',tags:['essen'],maps:'Fischbrathalle Münster Schlaunstraße',rq:'Fischbrathalle Münster',
+      pool:'muenster-essen',poolAll:[
+        {name:'Fischbrathalle',desc:'Institution seit 1926. Frischer Backfisch — nur mittags.',maps:'Fischbrathalle Münster Schlaunstraße',rq:'Fischbrathalle Münster'},
+        {name:'Großer Kiepenkerl',desc:'Traditionelles Gasthaus mit breitem Menü und regionaler Küche.',maps:'Großer Kiepenkerl Münster',rq:'Großer Kiepenkerl Münster'},
+        {name:'Altes Gasthaus Leve',desc:'Beliebte Adresse für klassische Küche mit moderner Note.',maps:'Altes Gasthaus Leve Münster',rq:'Altes Gasthaus Leve Münster'},
+        {name:'Fegefeuer',desc:'Kreatives Konzept, saisonale Küche — von Einheimischen empfohlen.',maps:'Fegefeuer Münster',rq:'Fegefeuer Münster'},
+        {name:'Makimaki Sushi-Green',desc:'Sehr gute Sushi-Bewertungen, moderne Ausrichtung.',maps:'Makimaki Sushi Green Münster',rq:'Makimaki Münster'},
+        {name:'Phoenicia',desc:'Libanesisch orientierte Küche, vielseitige Aromen.',maps:'Phoenicia Münster',rq:'Phoenicia Münster'},
+        {name:'Namaste',desc:'Reichhaltige indische Küche mit orientalischer Intensität.',maps:'Namaste Indisches Restaurant Münster',rq:'Namaste Münster'},
+        {name:'Beetschwester',desc:'Rein pflanzliches Konzept, kreatives veganes Angebot.',maps:'Beetschwester Münster',rq:'Beetschwester Münster'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+/* ── WEIT ── */
+{ id:'koblenz', zone:'weit', name:'Koblenz', car:'80 Min.', train:'53 Min.',
+  activities(ok){ return [
+    {name:'Festung Ehrenbreitstein',desc:'Riesige Festung per Seilbahn — grandioser Ausblick, für Kinder ein Erlebnis.',tags:['museum'],maps:'Festung Ehrenbreitstein Koblenz',rq:'Festung Ehrenbreitstein',
+      pool:'koblenz-museum',poolAll:[
+        {name:'Festung Ehrenbreitstein',desc:'Riesige Festung per Seilbahn erreichbar. Grandioser Ausblick.',maps:'Festung Ehrenbreitstein Koblenz',rq:'Festung Ehrenbreitstein'},
+      ]},
+    {name:'Deutsches Eck & Rheinufer',desc:'Denkmal an der Mündung von Mosel und Rhein. Schöner Spaziergang.',tags:['natur'],maps:'Deutsches Eck Koblenz',rq:null,
+      pool:'koblenz-natur',poolAll:[
+        {name:'Deutsches Eck & Rheinufer',desc:'Denkmal an der Mündung von Mosel und Rhein.',maps:'Deutsches Eck Koblenz',rq:null},
+      ]},
+    {name:'Festung für Kinder',desc:'Die Festung Ehrenbreitstein ist für Kinder ein echtes Abenteuer — Seilbahn, Kanonen, Burgmauern.',tags:['kinder'],maps:'Festung Ehrenbreitstein Koblenz',rq:'Festung Ehrenbreitstein',
+      pool:'koblenz-kinder',poolAll:[
+        {name:'Festung für Kinder',desc:'Seilbahn, Kanonen, Burgmauern — Kinder lieben die Festung.',maps:'Festung Ehrenbreitstein Koblenz',rq:'Festung Ehrenbreitstein'},
+      ]},
+    {name:"Eagle's Fischküche",desc:'Lokales Fischrestaurant in der Altstadt. Frischer Rhein- und Meeresfisch, bodenständig.',tags:['essen'],maps:"Eagles Fischküche Koblenz",rq:"Eagles Fischküche Koblenz",
+      pool:'koblenz-essen',poolAll:[
+        {name:"Eagle's Fischküche",desc:'Lokales Fischrestaurant. Frischer Rhein- und Meeresfisch.',maps:"Eagles Fischküche Koblenz",rq:"Eagles Fischküche Koblenz"},
+        {name:'Altes Brauhaus',desc:'Traditionelles Brauhaus in der Altstadt — riesige Portionen.',maps:'Altes Brauhaus Koblenz',rq:'Altes Brauhaus Koblenz'},
+        {name:'Fox',desc:'Junges Szenecafé/Restaurant. Entspannte Atmosphäre.',maps:'Fox Restaurant Koblenz',rq:'Fox Koblenz Restaurant'},
+        {name:'Sushi Bar Xiao',desc:'Sushi-Restaurant in Koblenz. Frisch zubereitet.',maps:'Sushi Bar Xiao Koblenz',rq:'Sushi Xiao Koblenz'},
+        {name:'Délires',desc:'Internationales Restaurant. Kreative Küche, schönes Ambiente.',maps:'Délires Restaurant Koblenz',rq:'Délires Koblenz'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'mosel', zone:'weit', name:'Mosel', car:'90–100 Min.', train:'90–100 Min.',
+  activities(ok){ return [
+    {name:'Reichsburg Cochem',desc:'Märchenschloss hoch über Cochem. Für Kinder wie aus einem Bilderbuch.',tags:['museum'],maps:'Reichsburg Cochem',rq:'Reichsburg Cochem',
+      pool:'mosel-museum',poolAll:[
+        {name:'Reichsburg Cochem',desc:'Märchenschloss hoch über Cochem. Führungen, Panoramablick.',maps:'Reichsburg Cochem',rq:'Reichsburg Cochem'},
+        {name:'Burg Eltz',desc:'Eines der schönsten Schlösser Deutschlands im tiefen Wald.',maps:'Burg Eltz',rq:'Burg Eltz'},
+      ]},
+    {name:'Mosel Radweg',desc:'Einer der schönsten Radwege Deutschlands — flach entlang der Mosel, durch Weinberge.',tags:['natur'],maps:'Mosel Radweg Cochem',rq:null,ns:true,
+      pool:'mosel-natur',poolAll:[
+        {name:'Mosel Radweg',desc:'Flach entlang der Mosel durch Weinberge. Einer der schönsten Radwege.',maps:'Mosel Radweg Cochem',rq:null,ns:true},
+        {name:'Mosel Wanderweg Calmont',desc:'Steilster Weinberg Europas. Spektakulärer Wanderweg.',maps:'Calmont Mosel Wanderweg',rq:null,ns:true},
+        {name:'Bernkastel-Kues',desc:'Malerisches Weinstädtchen mit Fachwerk und Weinproben.',maps:'Bernkastel-Kues Marktplatz',rq:null},
+        {name:'Mosel Schifffahrt',desc:'Bootsfahrt auf der Mosel — Weinberge vom Wasser aus genießen.',maps:'Mosel Schifffahrt Cochem',rq:null,ns:true},
+      ]},
+    {name:'Reichsburg Kinderführung',desc:'Die Reichsburg bietet Kinderführungen an — Ritter, Burggeschichten, Mittelalter erleben.',tags:['kinder'],maps:'Reichsburg Cochem',rq:'Reichsburg Cochem',
+      pool:'mosel-kinder',poolAll:[
+        {name:'Reichsburg Kinderführung',desc:'Ritter, Burggeschichten und Mittelalter für Kinder.',maps:'Reichsburg Cochem',rq:'Reichsburg Cochem'},
+        {name:'Mosel Schifffahrt',desc:'Bootsfahrt auf der Mosel — für Kinder ein Erlebnis.',maps:'Mosel Schifffahrt Cochem',rq:null,ns:true},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'sauerland', zone:'weit', name:'Sauerland', car:'100–110 Min.', train:'90 Min.',
+  activities(ok){ return [
+    {name:'Balve Höhle',desc:'Eine der größten Höhlen Deutschlands. Geführte Touren — für Kinder ein Abenteuer.',tags:['museum'],maps:'Balve Höhle Sauerland',rq:'Balve Höhle',
+      pool:'sauerland-museum',poolAll:[
+        {name:'Balve Höhle',desc:'Eine der größten Höhlen Deutschlands. Geführte Touren.',maps:'Balve Höhle Sauerland',rq:'Balve Höhle'},
+      ]},
+    {name:'Möhnesee',desc:'Großer Stausee mit Wassersport, Radwegen und schöner Natur.',tags:['natur'],maps:'Möhnesee Sauerland',rq:null,ns:true,
+      pool:'sauerland-natur',poolAll:[
+        {name:'Möhnesee',desc:'Großer Stausee mit Wassersport und Radwegen.',maps:'Möhnesee Sauerland',rq:null,ns:true},
+        {name:'Kahler Asten / Winterberg',desc:'Höchster Punkt des Sauerlandes. Sommerrodelbahn, Wanderwege.',maps:'Kahler Asten Winterberg',rq:null,ns:true},
+        {name:'Hennesee Meschede',desc:'Stausee mit Tretbooten, Badestrand, Wanderwegen.',maps:'Hennesee Meschede Sauerland',rq:null,ns:true},
+        {name:'Lennestadt Wanderwege',desc:'Wanderrouten durch das Lennetal mit Wäldern.',maps:'Lennestadt Wanderweg Sauerland',rq:null,ns:true},
+      ]},
+    {name:'Fort Fun Abenteuerland',desc:'Großer Freizeitpark im Sauerland. Für Kinder von 4–10 Jahren ein Highlight.',tags:['kinder'],maps:'Fort Fun Abenteuerland Bestwig',rq:null,
+      pool:'sauerland-kinder',poolAll:[
+        {name:'Fort Fun Abenteuerland',desc:'Großer Freizeitpark im Sauerland. Für Kinder ein Highlight.',maps:'Fort Fun Abenteuerland Bestwig',rq:null},
+        {name:'Balve Höhle',desc:'Höhlenentdeckung — für Kinder ein echtes Abenteuer.',maps:'Balve Höhle Sauerland',rq:'Balve Höhle'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'ruhrgebiet', zone:'weit', name:'Ruhrgebiet', car:'70–90 Min.', train:'60–80 Min.',
+  activities(ok){ return [
+    {name:'Zeche Zollverein',desc:'UNESCO-Welterbe. Design Museum, beeindruckendes Industriedenkmal.',tags:['museum'],maps:'Zeche Zollverein Essen',rq:'Zeche Zollverein Essen',
+      pool:'ruhr-museum',poolAll:[
+        {name:'Zeche Zollverein',desc:'UNESCO-Welterbe. Design Museum, Industriedenkmal.',maps:'Zeche Zollverein Essen',rq:'Zeche Zollverein Essen'},
+        {name:'Gasometer Oberhausen',desc:'Spektakulärer Industriebau mit Wechselausstellungen.',maps:'Gasometer Oberhausen',rq:'Gasometer Oberhausen'},
+        {name:'DASA Dortmund',desc:'Erlebnisausstellung über Arbeit und Alltag. Sehr interaktiv.',maps:'DASA Dortmund',rq:'DASA Dortmund'},
+        {name:'Henrichshütte Hattingen',desc:'Ehemaliges Hüttenwerk, jetzt Technikmuseum. Faszinierende Industriegeschichte.',maps:'Henrichshütte Hattingen',rq:'Henrichshütte Hattingen'},
+        {name:'Dortmunder U',desc:'Kreativzentrum im Brauereiturm. Kunst, Kultur, Café mit Dachterrasse.',maps:'Dortmunder U',rq:'Dortmunder U'},
+      ]},
+    {name:'Zoom Erlebniswelt Gelsenkirchen',desc:'Moderner Zoo in 4 Welten. Für Kinder ab 3 Jahren begeisternd.',tags:['natur'],maps:'Zoom Erlebniswelt Gelsenkirchen',rq:null,
+      pool:'ruhr-natur',poolAll:[
+        {name:'Zoom Erlebniswelt Gelsenkirchen',desc:'Moderner Zoo in 4 Welten.',maps:'Zoom Erlebniswelt Gelsenkirchen',rq:null},
+      ]},
+    {name:'DASA Dortmund für Kinder',desc:'Interaktive Ausstellung über Arbeit und Alltag — ab 6 Jahren super, mit Mitmachstationen.',tags:['kinder'],maps:'DASA Dortmund',rq:'DASA Dortmund',
+      pool:'ruhr-kinder',poolAll:[
+        {name:'DASA Dortmund für Kinder',desc:'Interaktive Mitmachausstellung. Ab 6 Jahren super.',maps:'DASA Dortmund',rq:'DASA Dortmund'},
+        {name:'Zoom Erlebniswelt',desc:'Moderner Zoo in 4 Welten. Für Kinder ab 3 begeisternd.',maps:'Zoom Erlebniswelt Gelsenkirchen',rq:null},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+/* ── SEHR WEIT ── */
+{ id:'amsterdam', zone:'sehrweit', name:'Amsterdam', car:'150 Min.', train:'155 Min.',
+  activities(ok){ return [
+    {name:'Rijksmuseum',desc:'Eines der besten Museen der Welt. Rembrandt, Vermeer, holländische Meister.',tags:['museum'],maps:'Rijksmuseum Amsterdam',rq:'Rijksmuseum Amsterdam',
+      pool:'amsterdam-museum',poolAll:[
+        {name:'Rijksmuseum',desc:'Eines der besten Museen der Welt.',maps:'Rijksmuseum Amsterdam',rq:'Rijksmuseum Amsterdam'},
+        {name:'NEMO Science Museum',desc:'Riesiges interaktives Wissenschaftsmuseum. Für Kinder perfekt.',maps:'NEMO Science Museum Amsterdam',rq:'NEMO Amsterdam'},
+      ]},
+    {name:'Grachtenfahrt Jordaan',desc:'Bootsfahrt durch die Grachten — die beste Art Amsterdam zu entdecken.',tags:['natur'],maps:'Grachten Jordaan Amsterdam',rq:null,
+      pool:'amsterdam-natur',poolAll:[
+        {name:'Grachtenfahrt Jordaan',desc:'Bootsfahrt durch die Grachten — unvergesslich.',maps:'Grachten Jordaan Amsterdam',rq:null},
+        {name:'Vondelpark',desc:'Amsterdams berühmtester Park. Entspannen, Picknick, Straßenmusik.',maps:'Vondelpark Amsterdam',rq:null,ns:true},
+      ]},
+    {name:'NEMO Science Museum',desc:'Riesiges interaktives Wissenschaftsmuseum. Für Kinder von 4–8 Jahren ein ganzer Tag.',tags:['kinder'],maps:'NEMO Science Museum Amsterdam',rq:'NEMO Amsterdam',
+      pool:'amsterdam-kinder',poolAll:[
+        {name:'NEMO Science Museum',desc:'Riesiges interaktives Wissenschaftsmuseum. Für Kinder perfekt.',maps:'NEMO Science Museum Amsterdam',rq:'NEMO Amsterdam'},
+        {name:'Artis Zoo Amsterdam',desc:'Ältester Zoo der Niederlande mit Planetarium und Aquarium.',maps:'Artis Zoo Amsterdam',rq:null},
+      ]},
+    {name:'Pesca',desc:'Theatralisches Fischrestaurant — du wählst deinen Fisch direkt am Markt. Einzigartiges Erlebnis.',tags:['essen'],maps:'Pesca Amsterdam Rozengracht',rq:'Pesca Amsterdam',
+      pool:'amsterdam-essen',poolAll:[
+        {name:'Pesca',desc:'Theatralisches Fischrestaurant — du wählst deinen Fisch direkt am Markt.',maps:'Pesca Amsterdam Rozengracht',rq:'Pesca Amsterdam'},
+        {name:'Moeders',desc:'Echte holländische Hausmannskost. Klassisch, herzlich, urig.',maps:'Moeders Restaurant Amsterdam',rq:'Moeders Amsterdam'},
+        {name:'Cannibale Royale',desc:'Szeniges Fleisch- und Cocktail-Restaurant im Jordaan.',maps:'Cannibale Royale Amsterdam Rozengracht',rq:'Cannibale Royale Amsterdam'},
+        {name:'Sushi Fanatics',desc:'Beliebtes Sushi-Restaurant in Amsterdam. Frisch, gute Qualität.',maps:'Sushi Fanatics Amsterdam',rq:'Sushi Fanatics Amsterdam'},
+        {name:'Bazar',desc:'Internationales Restaurant im De Pijp-Viertel. Orientalisch-bunt.',maps:'Bazar Restaurant Amsterdam De Pijp',rq:'Bazar Amsterdam'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+
+{ id:'rotterdam', zone:'sehrweit', name:'Rotterdam', car:'140 Min.', train:'130 Min.',
+  activities(ok){ return [
+    {name:'Kubushäuser & Markthal',desc:'Ikonische Architektur. Die Markthal ist innen gigantisch — auch für Kinder beeindruckend.',tags:['museum'],maps:'Kubushäuser Rotterdam',rq:null,
+      pool:'rotterdam-museum',poolAll:[
+        {name:'Kubushäuser & Markthal',desc:'Ikonische Architektur. Die Markthal innen gigantisch.',maps:'Kubushäuser Rotterdam',rq:null},
+        {name:'Museum Boijmans',desc:'Eines der renommiertesten Kunstmuseen der Niederlande.',maps:'Museum Boijmans Van Beuningen Rotterdam',rq:'Boijmans Rotterdam'},
+      ]},
+    {name:'Euromast',desc:'Aussichtsturm mit 100m Plattform über Rotterdam. Mit Seilbahn runter — spektakulär.',tags:['natur'],maps:'Euromast Rotterdam',rq:null,
+      pool:'rotterdam-natur',poolAll:[
+        {name:'Euromast',desc:'Aussichtsturm über Rotterdam. Mit Seilbahn runter.',maps:'Euromast Rotterdam',rq:null},
+      ]},
+    {name:'Rotterdam Zoo Blijdorp',desc:'Einer der besten Zoos der Niederlande. Für Kinder ein ganzer Tag.',tags:['kinder'],maps:'Diergaarde Blijdorp Rotterdam',rq:null,
+      pool:'rotterdam-kinder',poolAll:[
+        {name:'Rotterdam Zoo Blijdorp',desc:'Einer der besten Zoos der Niederlande.',maps:'Diergaarde Blijdorp Rotterdam',rq:null},
+        {name:'Euromast',desc:'Seilbahn und Turm — für Kinder aufregend.',maps:'Euromast Rotterdam',rq:null},
+      ]},
+    {name:'Fisk & Co',desc:'Trendiges Fischrestaurant. Frischer Fisch, schöne Atmosphäre.',tags:['essen'],maps:'Fisk Co Rotterdam',rq:'Fisk Co Rotterdam',
+      pool:'rotterdam-essen',poolAll:[
+        {name:'Fisk & Co',desc:'Trendiges Fischrestaurant. Frischer Fisch, schöne Atmosphäre.',maps:'Fisk Co Rotterdam',rq:'Fisk Co Rotterdam'},
+        {name:'Guliano',desc:'Beliebtes Lunchrestaurant. Tolle Sandwiches, freundlicher Service.',maps:'Lunchrestaurant Guliano Rotterdam',rq:'Guliano Rotterdam'},
+        {name:'Bertmans',desc:'Innovative vegetarische Küche, schön präsentiert.',maps:'Bertmans Rotterdam Karel Doormanstraat',rq:'Bertmans Rotterdam'},
+        {name:'Sushi by Bou',desc:'Sushi-Restaurant in Rotterdam. Frisch, qualitätsbewusst.',maps:'Sushi by Bou Rotterdam',rq:'Sushi by Bou Rotterdam'},
+        {name:'Restaurant Putaine',desc:'Modernes Seasonal Restaurant & Bar mit Skyline-Blick.',maps:'Putaine Restaurant Rotterdam',rq:'Putaine Rotterdam'},
+      ]},
+  ].filter(a=>ok||!a.ns); }
+},
+];
+
+/* ═══════════════ STATE ═══════════════ */
+let curZone=null, curDest=null, wxGood=true, activeFilter='alle';
+let dayMode = 0; // 0 = heute, 1 = morgen
+// Per-pool current index tracking
+const poolIndexes = {};
+
+const ZMETA = {
+  nah:      {label:'Nah',      detail:'0–30 Min. Fahrt'},
+  mittel:   {label:'Mittel',   detail:'30–90 Min. Fahrt'},
+  weit:     {label:'Weit',     detail:'90–120 Min. Fahrt'},
+  sehrweit: {label:'Sehr weit',detail:'120–180 Min. Fahrt'},
+};
+
+/* ═══════════════ UTILS ═══════════════ */
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+
+/* ═══════════════ WEATHER ENGINE v2 ═══════════════
+   Sonnenstunden-basiertes Scoring
+   Saisonale Tageslichtberechnung (Breitengrad ~51°N)
+   Stündlicher Verlauf 7–21 Uhr
+═══════════════════════════════════════════════════ */
+
+// Tageslichtdauer in Stunden für Breitengrad 51°N je Monat (0=Jan)
+const DAYLIGHT = [8.2,9.5,11.5,13.5,15.2,16.2,15.8,14.5,12.5,10.5,8.8,7.8];
+
+function rng(seed, n){ return Math.abs(Math.sin(seed * n * 0.127 + n * 3.1)) % 1; }
+
+function destSeed(id, dayOffset){
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  const dayKey = d.getDate() + d.getMonth()*31 + d.getFullYear()*366;
+  return id.split('').reduce((a,c)=>a+c.charCodeAt(0),0)*7 + dayKey;
+}
+
+// Generiert stündliche Wetterdaten 7–21 Uhr (15 Stunden)
+function hourlyWeather(id, dayOffset=0){
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  const month = d.getMonth();
+  const seed = destSeed(id, dayOffset);
+
+  const maxDaylight = DAYLIGHT[month];
+  // Sonnenaufgang ca. 6–8 Uhr je Saison, Sonnenuntergang entsprechend
+  const sunrise = 8 - (maxDaylight - 8) * 0.3;
+  const sunset  = sunrise + maxDaylight;
+
+  // Basis-Wolkenbedeckung für diesen Tag (0–1)
+  const baseClouds = rng(seed, 1);
+  // Basistemperatur je Monat + Ort-Variation
+  const monthTemp = [3,4,8,13,17,20,22,22,18,13,7,4][month];
+  const destTempOffset = (rng(seed,5) - 0.5) * 8;
+  const middayTemp = monthTemp + destTempOffset;
+
+  const hours = [];
+  for(let h = 7; h <= 21; h++){
+    // Temperaturkurve: Minimum morgens/abends, Maximum ~14 Uhr
+    const tempCurve = Math.sin((h - 6) / 16 * Math.PI);
+    const tempSpread = Math.max(2, middayTemp * 0.4);
+    const temp = Math.round((middayTemp - tempSpread) + tempCurve * tempSpread * 2 + rng(seed, h*0.3) * 1.5 - 0.75);
+
+    // Regenwahrscheinlichkeit — variiert über den Tag
+    const rainBase = rng(seed, 2) * 80;
+    const rainVariation = (rng(seed, h*0.7+3) - 0.5) * 40;
+    const rain = Math.round(Math.max(0, Math.min(99, rainBase + rainVariation)));
+
+    // Sonne: hängt von Tageslicht + Wolken ab
+    const isDaylight = h >= sunrise && h <= sunset;
+    const cloudFactor = baseClouds * 0.8 + rng(seed, h*0.4) * 0.2;
+    const sunPossible = isDaylight && cloudFactor < 0.6;
+    const sunStrength = isDaylight ? Math.max(0, 1 - cloudFactor * 1.6) : 0;
+
+    // Icon
+    let icon;
+    if(!isDaylight){ icon = '🌙'; }
+    else if(rain > 65){ icon = '🌧️'; }
+    else if(rain > 40){ icon = '🌦️'; }
+    else if(cloudFactor > 0.7){ icon = '☁️'; }
+    else if(cloudFactor > 0.4){ icon = '⛅'; }
+    else if(cloudFactor > 0.2){ icon = '🌤️'; }
+    else { icon = '☀️'; }
+
+    hours.push({ h, temp, rain, icon, sunStrength, isDaylight });
+  }
+
+  // Sonnenstunden berechnen (Stunden mit sunStrength > 0.3)
+  const sunHours = Math.round(hours.filter(x=>x.sunStrength > 0.3).length * 10) / 10;
+  const maxRain = Math.max(...hours.map(x=>x.rain));
+  const avgRain = Math.round(hours.reduce((s,x)=>s+x.rain,0)/hours.length);
+  const middayH = hours.find(x=>x.h===14)||hours[7];
+  const good = sunHours >= 3 && avgRain < 50;
+
+  return { hours, sunHours, maxRain, avgRain, middayTemp: middayH.temp,
+           minTemp: Math.min(...hours.map(x=>x.temp)),
+           maxTemp: Math.max(...hours.map(x=>x.temp)),
+           good, maxDaylight, month };
+}
+
+// SCORING: Sonnenstunden dominiert, dann Regen, dann Temperatur
+function weatherScore(id, dayOffset=0){
+  const w = hourlyWeather(id, dayOffset);
+  return w.sunHours * 10 + (100 - w.avgRain) * 0.4 + w.middayTemp * 0.2;
+}
+
+function getWeatherForDay(id){ return hourlyWeather(id, dayMode); }
+
+function bestDest(zone){
+  return DEST.filter(d=>d.zone===zone)
+    .sort((a,b)=> weatherScore(b.id, dayMode) - weatherScore(a.id, dayMode))[0];
+}
+
+// KLEIDUNGSEMPFEHLUNG
+function clothingAdvice(w){
+  const t = w.middayTemp;
+  const rain = w.maxRain;
+  const spread = w.maxTemp - w.minTemp;
+
+  let base, baseIcon;
+  if(t < 5)        { baseIcon='🧥'; base='Winterjacke'; }
+  else if(t < 10)  { baseIcon='🧥'; base='Warme Jacke'; }
+  else if(t < 15)  { baseIcon='🧥'; base='Leichte Jacke'; }
+  else if(t < 20)  { baseIcon='👕'; base='Langarm oder T-Shirt'; }
+  else             { baseIcon='👕'; base='T-Shirt reicht'; }
+
+  let extra = [];
+  if(rain > 60)      extra.push('☂️ Regenjacke oder Schirm');
+  else if(rain > 35) extra.push('🌂 Schirm einpacken');
+  if(spread > 7)     extra.push('🧣 Abends Schichten drüber');
+
+  return { icon: baseIcon, base, extra };
+}
+
+// SVG CHART generieren
+function buildWeatherChart(w){
+  const hrs = w.hours;
+  const W = 380, H = 120;
+  const padL=28, padR=10, padT=32, padB=36;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = hrs.length;
+
+  const temps = hrs.map(x=>x.temp);
+  const tMin = Math.min(...temps) - 2;
+  const tMax = Math.max(...temps) + 2;
+
+  const xOf = i => padL + (i/(n-1)) * chartW;
+  const yOf = t => padT + chartH - ((t-tMin)/(tMax-tMin)) * chartH;
+
+  // Rain bars (background)
+  const rainBars = hrs.map((x,i)=>{
+    const bw = chartW/n * 0.85;
+    const bx = xOf(i) - bw/2;
+    const bh = (x.rain/100) * chartH;
+    const by = padT + chartH - bh;
+    const alpha = (x.rain/100 * 0.55 + 0.05).toFixed(2);
+    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="rgba(36,129,215,${alpha})" rx="2"/>`;
+  }).join('');
+
+  // Temp curve — smooth bezier
+  const pts = hrs.map((x,i)=>({x:xOf(i), y:yOf(x.temp)}));
+  let path = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for(let i=1;i<pts.length;i++){
+    const prev=pts[i-1], curr=pts[i];
+    const cx=(prev.x+curr.x)/2;
+    path += ` C${cx.toFixed(1)},${prev.y.toFixed(1)} ${cx.toFixed(1)},${curr.y.toFixed(1)} ${curr.x.toFixed(1)},${curr.y.toFixed(1)}`;
+  }
+  // Fill under curve
+  const fillPath = path + ` L${pts[n-1].x.toFixed(1)},${(padT+chartH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT+chartH).toFixed(1)} Z`;
+
+  // Hour labels + icons (every 2h)
+  const labels = hrs.filter((_,i)=>i%2===0).map((x,li)=>{
+    const i = li*2;
+    const xp = xOf(i);
+    return `<text x="${xp.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#8a96a8">${x.h}h</text>
+            <text x="${xp.toFixed(1)}" y="${(padT-4).toFixed(1)}" text-anchor="middle" font-size="10">${x.icon}</text>`;
+  }).join('');
+
+  // Temp labels at min/max
+  const maxI = temps.indexOf(Math.max(...temps));
+  const minI = temps.indexOf(Math.min(...temps));
+  const tempLabels = `
+    <text x="${xOf(maxI).toFixed(1)}" y="${(yOf(temps[maxI])-6).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1a6bb5">${temps[maxI]}°</text>
+    <text x="${xOf(minI).toFixed(1)}" y="${(yOf(temps[minI])+14).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#8a96a8">${temps[minI]}°</text>`;
+
+  // Rain % labels at peak rain hours
+  const maxRainI = hrs.map(x=>x.rain).indexOf(Math.max(...hrs.map(x=>x.rain)));
+  const rainLabel = hrs[maxRainI].rain > 20
+    ? `<text x="${xOf(maxRainI).toFixed(1)}" y="${(padT + chartH * (1 - hrs[maxRainI].rain/100) - 4).toFixed(1)}" text-anchor="middle" font-size="8.5" fill="rgba(36,129,215,.8)">${hrs[maxRainI].rain}%</text>`
+    : '';
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible">
+    <defs>
+      <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2481d7" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#2481d7" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${rainBars}
+    <path d="${fillPath}" fill="url(#tempGrad)"/>
+    <path d="${path}" fill="none" stroke="#1a6bb5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${labels}
+    ${tempLabels}
+    ${rainLabel}
+  </svg>`;
+}
+
+function tl(t){ return {natur:'Natur',museum:'Museum',essen:'Essen',kinder:'Kind'}[t]||t; }
+function primaryTag(tags){const prio=['museum','essen','natur','kinder'];return prio.find(p=>tags.includes(p))||tags[0];}
+
+/* ═══════════════ DAY TOGGLE ═══════════════ */
+function toggleDay(){
+  dayMode = dayMode===0 ? 1 : 0;
+  const tog = document.getElementById('day-toggle');
+  const lH = document.getElementById('lbl-heute');
+  const lM = document.getElementById('lbl-morgen');
+  tog.classList.toggle('morgen', dayMode===1);
+  lH.classList.toggle('active', dayMode===0);
+  lM.classList.toggle('active', dayMode===1);
+  // Re-render if a destination is already shown
+  if(curDest && document.getElementById('sec-weather').classList.contains('show')){
+    renderDestCard(curDest, curDest.zone, false);
+    if(document.getElementById('sec-activities').classList.contains('show')) showActivities();
+  } else if(curZone){
+    showWeather(curZone);
+  }
+}
+
+/* ═══════════════ JOYSTICK ═══════════════ */
+(function(){
+  const arena=document.getElementById('arena');
+  const h=document.getElementById('jh');
+  const rd=document.getElementById('zread');
+  const C=130;
+  let drag=false,lx=C,ly=C,lastZ=null;
+  const SNAP={nah:17,mittel:50,weit:82,sehrweit:115};
+  function zFromDist(d){return d<34?'nah':d<66?'mittel':d<98?'weit':'sehrweit';}
+  function moveTo(x,y){
+    const rect=arena.getBoundingClientRect();
+    const dx=x-rect.left-C,dy=y-rect.top-C;
+    const dist=Math.min(Math.sqrt(dx*dx+dy*dy),128);
+    const ang=Math.atan2(dy,dx);
+    lx=C+Math.cos(ang)*dist;ly=C+Math.sin(ang)*dist;
+    h.style.left=lx+'px';h.style.top=ly+'px';h.style.transform='none';
+    const z=zFromDist(dist);
+    if(z!==lastZ){lastZ=z;curZone=z;const m=ZMETA[z];rd.innerHTML=`<div class="zread-name">${m.label}</div><div class="zread-detail">${m.detail}</div>`;}
+  }
+  function release(){
+    drag=false;h.classList.remove('dragging');
+    if(!curZone)return;
+    const dx=lx-C,dy=ly-C,ang=Math.atan2(dy,dx),sr=SNAP[curZone];
+    h.style.transition='left .28s cubic-bezier(.34,1.56,.64,1),top .28s cubic-bezier(.34,1.56,.64,1)';
+    h.style.left=(C+Math.cos(ang)*sr)+'px';h.style.top=(C+Math.sin(ang)*sr)+'px';
+    setTimeout(()=>h.style.transition='',300);
+    showWeather(curZone);
+  }
+  h.addEventListener('mousedown',e=>{drag=true;h.classList.add('dragging');e.preventDefault();});
+  document.addEventListener('mousemove',e=>{if(drag)moveTo(e.clientX,e.clientY);});
+  document.addEventListener('mouseup',()=>{if(drag)release();});
+  h.addEventListener('touchstart',e=>{drag=true;h.classList.add('dragging');e.preventDefault();},{passive:false});
+  document.addEventListener('touchmove',e=>{if(drag){moveTo(e.touches[0].clientX,e.touches[0].clientY);e.preventDefault();}},{passive:false});
+  document.addEventListener('touchend',()=>{if(drag)release();});
+})();
+
+/* ═══════════════ WEATHER & DEST ═══════════════ */
+function showWeather(zone){
+  const best=bestDest(zone);
+  if(!best)return;
+  renderDestCard(best,zone,true);
+}
+
+function selectDest(id){
+  const d=DEST.find(x=>x.id===id);
+  if(!d)return;
+  closeDropdown();
+  renderDestCard(d,d.zone,false);
+  if(document.getElementById('sec-activities').classList.contains('show')) showActivities();
+}
+
+function renderDestCard(d,zone,isAuto){
+  curDest=d;
+  const w = hourlyWeather(d.id, dayMode);
+  wxGood = w.good;
+  const img=DEST_IMAGES[d.id]||'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=75';
+  const travel=[d.car?`🚗 ${d.car}`:'',d.train?`🚆 ${d.train}`:''].filter(Boolean).join('  ·  ');
+
+  // Header-Status
+  let hCls,hTxt,hSub;
+  if(w.sunHours>=5 && w.avgRain<35){hCls='sun';hTxt='☀️ Follow the Sun!';hSub=`${w.sunHours}h Sonne erwartet — perfekter Ausflugstag`;}
+  else if(w.sunHours>=2 && w.avgRain<60){hCls='ok';hTxt='🌤 Guter Ausflugstag';hSub=`${w.sunHours}h Sonne möglich — Schichten einpacken`;}
+  else{hCls='rain';hTxt='🌧 Heute lieber Indoor';hSub='Wenig Sonne, viel Regen — Museen warten!';}
+
+  // Kleidung
+  const cloth = clothingAdvice(w);
+  const clothHtml = `
+    <div class="wx-clothing">
+      <div class="wx-clothing-icon">${cloth.icon}</div>
+      <div>
+        <div class="wx-clothing-text">${cloth.base}${cloth.extra.length ? ' · ' + cloth.extra.join(' · ') : ''}</div>
+        <div class="wx-clothing-sub">${w.minTemp}° früh · ${w.maxTemp}° mittags · ${w.minTemp+1}° abends</div>
+      </div>
+    </div>`;
+
+  // Sonnenstunden-Balken
+  const sunPct = Math.round((w.sunHours / w.maxDaylight) * 100);
+  const sunRowHtml = `
+    <div class="wx-sun-row">
+      <div class="wx-sun-badge">☀️ ${w.sunHours}h Sonne</div>
+      <div class="wx-sun-bar-wrap"><div class="wx-sun-bar" style="width:${sunPct}%"></div></div>
+      <div style="font-size:.68rem;color:var(--muted);white-space:nowrap">von ${w.maxDaylight}h Tageslicht</div>
+    </div>`;
+
+  // SVG Chart
+  const chartHtml = `
+    <div class="wx-chart-wrap">
+      <div class="wx-chart-label">Tagesverlauf ${dayMode===0?'Heute':'Morgen'} — Temperatur & Regen</div>
+      <div class="wx-chart-scroll">
+        <div class="wx-chart-svg-wrap">${buildWeatherChart(w)}</div>
+      </div>
+    </div>`;
+
+  // Dropdown
+  const zoneOrder=['nah','mittel','weit','sehrweit'];
+  const zoneLabels={nah:'Nah · 0–30 Min',mittel:'Mittel · 30–90 Min',weit:'Weit · 90–120 Min',sehrweit:'Sehr weit · 120+ Min'};
+  let ddHtml=`<div class="dropdown-zone-label" style="background:#e8f3fb;color:var(--blue2);">Wettersymbol = ${dayMode===0?'Heute':'Morgen'}</div>`;
+  zoneOrder.forEach(z=>{
+    ddHtml+=`<div class="dropdown-zone-label">${zoneLabels[z]}</div>`;
+    DEST.filter(x=>x.zone===z).forEach(c=>{
+      const cw = hourlyWeather(c.id, dayMode);
+      const wxIcon = cw.sunHours>=4?'☀️':cw.avgRain<50?'🌤️':'🌧️';
+      ddHtml+=`<div class="dropdown-item ${c.id===d.id?'active':''}" onclick="selectDest('${c.id}')">
+        <div><div class="dropdown-item-name">${c.name}</div><div class="dropdown-item-meta">${[c.car,c.train].filter(Boolean).join(' · ')}</div></div>
+        <div class="dropdown-wx" title="${cw.maxTemp}°C · ☀️${cw.sunHours}h">${wxIcon}</div>
+      </div>`;
+    });
+  });
+
+  document.getElementById('sec-weather-label').textContent=isAuto?'⭐ Beste Empfehlung nach Wetter':'✏️ Manuell ausgewählt';
+  const outdoorBtn = !wxGood ? `<button class="outdoor-btn" onclick="showOutdoorEvents()">🌞 Outdoor Events anzeigen</button>` : '';
+
+  document.getElementById('dest-card').innerHTML=`
+    <div class="dest-img" style="background-image:url('${img}')">
+      <div class="dest-img-overlay"></div>
+      <div class="dest-img-label">
+        <div class="dest-img-name">${d.name}</div>
+        <div class="dest-img-travel">${travel}</div>
+      </div>
+    </div>
+    <div class="dest-row">
+      <div class="dest-row-left">
+        <div class="dest-row-name">${d.name}</div>
+        <div class="dest-row-travel">${travel}</div>
+        ${isAuto?'<div class="dest-best-badge">⭐ Meiste Sonne in dieser Zone</div>':''}
+      </div>
+      <div class="dest-dropdown-wrap">
+        <button class="dest-dropdown-btn" id="dd-btn" onclick="toggleDropdown(event)">
+          Andere Stadt
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="dest-dropdown-menu" id="dd-menu">${ddHtml}</div>
+      </div>
+    </div>
+    <div class="weather-strip">
+      <div class="weather-head ${hCls}">${hTxt}</div>
+      <div class="weather-sub">${hSub}</div>
+      ${outdoorBtn}
+    </div>
+    ${sunRowHtml}
+    ${chartHtml}
+    ${clothHtml}
+    <button class="btn-explore" onclick="showActivities()">Aktivitäten entdecken →</button>`;
+
+  // Position dropdown correctly after render
+  const sec=document.getElementById('sec-weather');
+  sec.classList.add('show');
+  setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+/* Dropdown */
+function toggleDropdown(e){
+  e.stopPropagation();
+  const btn=document.getElementById('dd-btn');
+  const menu=document.getElementById('dd-menu');
+  if(!menu)return;
+  const isOpen=menu.classList.contains('open');
+  if(isOpen){closeDropdown();}
+  else{
+    menu.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+function closeDropdown(){
+  const btn=document.getElementById('dd-btn');
+  const menu=document.getElementById('dd-menu');
+  if(btn)btn.classList.remove('open');
+  if(menu)menu.classList.remove('open');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dest-dropdown-wrap'))closeDropdown();
+});
+
+function showOutdoorEvents(){
+  alert(`Events für ${dayMode===0?'heute':'morgen'} — diese Funktion wird später über rausgegangen.de oder eine API verbunden. Bleibt spannend! 🎉`);
+}
+
+/* ═══════════════ ACTIVITIES ═══════════════ */
+function showActivities(){
+  activeFilter='alle';
+  document.querySelectorAll('.chip[data-f]').forEach(c=>{
+    c.classList.remove('on','off');
+    if(c.dataset.f==='alle')c.classList.add('on');
+    if(c.dataset.f==='natur'&&!wxGood)c.classList.add('off');
+  });
+  document.getElementById('acts-title').textContent=`Was tun in ${curDest.name}?`;
+  const dayLabel = dayMode===0 ? 'heute' : 'morgen';
+  document.getElementById('acts-sub').textContent=wxGood
+    ?`Schönes Wetter ${dayLabel} — alles ist eine Option 🌿`
+    :`${dayMode===0?'Heute':'Morgen'} lieber Indoor — Outdoor-Tipps ausgeblendet 🌧`;
+  renderCards();
+  const sec=document.getElementById('sec-activities');
+  sec.classList.add('show');
+  setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+function setFilter(f){
+  if(f==='natur'&&!wxGood)return;
+  activeFilter=f;
+  document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.toggle('on',c.dataset.f===f));
+  renderCards();
+}
+
+// Pool state: one displayed item per pool per render session
+const shownPoolItems = {};
+
+function refreshPool(poolId, destId){
+  const dest = DEST.find(d=>d.id===destId);
+  if(!dest)return;
+  const allActs = dest.activities(wxGood);
+  const poolActs = allActs.filter(a=>a.pool===poolId);
+  if(!poolActs.length)return;
+  const current = shownPoolItems[poolId]||0;
+  const poolAll = poolActs[0].poolAll||[];
+  const next = (current+1) % poolAll.length;
+  shownPoolItems[poolId] = next;
+  renderCards();
+}
+
+function renderCards(){
+  if(!curDest)return;
+  let allActs=curDest.activities(wxGood);
+  // Resolve pools: one item per pool, using current index
+  const seen={};
+  let list=[];
+  allActs.forEach(a=>{
+    if(a.pool){
+      if(!seen[a.pool]){
+        seen[a.pool]=true;
+        const idx = shownPoolItems[a.pool]||0;
+        const src = a.poolAll||[];
+        const item = src.length>0 ? src[idx % src.length] : null;
+        // Merge: pool item overrides name/desc/maps/rq, but keep tags and pool from parent
+        list.push(item ? {...item, tags:a.tags, pool:a.pool, poolAll:a.poolAll} : a);
+      }
+    } else {
+      list.push(a);
+    }
+  });
+
+  // Filter
+  if(activeFilter==='kinder'){
+    list=list.filter(a=>a.tags.includes('kinder'));
+  } else if(activeFilter!=='alle'){
+    list=list.filter(a=>a.tags[0]===activeFilter);
+  }
+  if(!wxGood) list=[...list].sort((a,b)=>(a.tags[0]==='natur'?1:0)-(b.tags[0]==='natur'?1:0));
+
+  const el=document.getElementById('act-list');
+  if(!list.length){el.innerHTML='<div class="empty">Keine Vorschläge für diesen Filter.</div>';return;}
+
+  el.innerHTML=list.map((a,i)=>{
+    const pt=primaryTag(a.tags);
+    const mUrl=`https://maps.google.com/?q=${encodeURIComponent(a.maps||a.name)}`;
+    const refreshBtn=a.pool&&(a.poolAll||[]).length>1
+      ?`<button class="abtn-refresh" onclick="refreshPool('${a.pool}','${curDest.id}')" title="Andere Option anzeigen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>`
+      :'';
+    return `<div class="acard" style="animation-delay:${i*.05}s">
+      <div class="acard-bar bar-${pt}"></div>
+      <div class="acard-body">
+        <div class="acard-top">
+          <div class="acard-name">${a.name}</div>
+          <span class="tag tag-${pt}">${tl(pt)}</span>
+        </div>
+        <div class="acard-desc">${a.desc}</div>
+        <div class="acard-btns">
+          <a class="abtn abtn-primary" href="${mUrl}" target="_blank">📍 Route</a>
+          ${refreshBtn}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
